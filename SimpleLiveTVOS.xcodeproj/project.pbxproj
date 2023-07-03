@@ -14,6 +14,7 @@
 		4FC3DCEF2A49383100CA36B9 /* SimpleLiveTVOSTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FC3DCEE2A49383100CA36B9 /* SimpleLiveTVOSTests.swift */; };
 		4FC3DCF92A49383100CA36B9 /* SimpleLiveTVOSUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FC3DCF82A49383100CA36B9 /* SimpleLiveTVOSUITests.swift */; };
 		4FC3DCFB2A49383100CA36B9 /* SimpleLiveTVOSUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FC3DCFA2A49383100CA36B9 /* SimpleLiveTVOSUITestsLaunchTests.swift */; };
+		4FC3DD092A49725F00CA36B9 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 4FC3DD082A49725F00CA36B9 /* Kingfisher */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -44,6 +45,7 @@
 		4FC3DCF42A49383100CA36B9 /* SimpleLiveTVOSUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SimpleLiveTVOSUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		4FC3DCF82A49383100CA36B9 /* SimpleLiveTVOSUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleLiveTVOSUITests.swift; sourceTree = "<group>"; };
 		4FC3DCFA2A49383100CA36B9 /* SimpleLiveTVOSUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleLiveTVOSUITestsLaunchTests.swift; sourceTree = "<group>"; };
+		4FC3DD0A2A4972FB00CA36B9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -51,6 +53,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4FC3DD092A49725F00CA36B9 /* Kingfisher in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -94,6 +97,7 @@
 		4FC3DCDC2A49382F00CA36B9 /* SimpleLiveTVOS */ = {
 			isa = PBXGroup;
 			children = (
+				4FC3DD0A2A4972FB00CA36B9 /* Info.plist */,
 				4FC3DCDD2A49382F00CA36B9 /* SimpleLiveTVOSApp.swift */,
 				4FC3DCDF2A49382F00CA36B9 /* ContentView.swift */,
 				4FC3DCE12A49383100CA36B9 /* Assets.xcassets */,
@@ -143,6 +147,9 @@
 			dependencies = (
 			);
 			name = SimpleLiveTVOS;
+			packageProductDependencies = (
+				4FC3DD082A49725F00CA36B9 /* Kingfisher */,
+			);
 			productName = SimpleLiveTVOS;
 			productReference = 4FC3DCDA2A49382F00CA36B9 /* SimpleLiveTVOS.app */;
 			productType = "com.apple.product-type.application";
@@ -215,6 +222,9 @@
 				Base,
 			);
 			mainGroup = 4FC3DCD12A49382F00CA36B9;
+			packageReferences = (
+				4FC3DD072A49725F00CA36B9 /* XCRemoteSwiftPackageReference "Kingfisher" */,
+			);
 			productRefGroup = 4FC3DCDB2A49382F00CA36B9 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -420,6 +430,7 @@
 				DEVELOPMENT_TEAM = 8C384KUMC6;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SimpleLiveTVOS/Info.plist;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UIUserInterfaceStyle = Automatic;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -432,6 +443,7 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 3;
+				TVOS_DEPLOYMENT_TARGET = 14.0;
 			};
 			name = Debug;
 		};
@@ -446,6 +458,7 @@
 				DEVELOPMENT_TEAM = 8C384KUMC6;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SimpleLiveTVOS/Info.plist;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UIUserInterfaceStyle = Automatic;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -458,6 +471,7 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 3;
+				TVOS_DEPLOYMENT_TARGET = 14.0;
 			};
 			name = Release;
 		};
@@ -577,6 +591,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		4FC3DD072A49725F00CA36B9 /* XCRemoteSwiftPackageReference "Kingfisher" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/onevcat/Kingfisher";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 7.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		4FC3DD082A49725F00CA36B9 /* Kingfisher */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4FC3DD072A49725F00CA36B9 /* XCRemoteSwiftPackageReference "Kingfisher" */;
+			productName = Kingfisher;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 4FC3DCD22A49382F00CA36B9 /* Project object */;
 }
