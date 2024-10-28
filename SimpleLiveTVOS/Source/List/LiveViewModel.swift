@@ -373,7 +373,7 @@ class LiveViewModel {
         }
     }
     
-    func createCurrentRoomViewModel(enterFromLive: Bool) {
+    @MainActor func createCurrentRoomViewModel(enterFromLive: Bool) {
         roomInfoViewModel = RoomInfoViewModel(currentRoom: roomList[selectedRoomListIndex], appViewModel: appViewModel, enterFromLive: enterFromLive, roomType: roomListType)
         roomInfoViewModel?.roomList = roomList
     }

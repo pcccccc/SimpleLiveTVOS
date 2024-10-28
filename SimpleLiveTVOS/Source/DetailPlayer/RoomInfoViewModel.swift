@@ -18,9 +18,9 @@ public class PlayerOptions: KSOptions {
   override public func sei(string: String) {
       
   }
-  override public func updateVideo(refreshRate: Float, isDovi: Bool, formatDescription: CMFormatDescription?) {
+  override public func updateVideo(refreshRate: Float, isDovi: Bool, formatDescription: CMFormatDescription) {
     guard syncSystemRate else { return }
-    super.updateVideo(refreshRate: refreshRate, isDovi: isDovi, formatDescription: formatDescription)
+      super.updateVideo(refreshRate: refreshRate, isDovi: isDovi, formatDescription: formatDescription)
   }
 }
 
@@ -101,6 +101,7 @@ final class RoomInfoViewModel {
     var danmuServerIsConnected = false
     var danmuServerIsLoading = false
     
+    @MainActor
     init(currentRoom: LiveModel, appViewModel: SimpleLiveViewModel, enterFromLive: Bool, roomType: LiveRoomListType) {
         KSOptions.isAutoPlay = true
         KSOptions.isSecondOpen = true
@@ -119,6 +120,7 @@ final class RoomInfoViewModel {
     /**
      切换清晰度
     */
+    @MainActor
     func changePlayUrl(cdnIndex: Int, urlIndex: Int) {
         guard currentRoomPlayArgs != nil else {
             isLoading = false
