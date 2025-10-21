@@ -1,0 +1,1507 @@
+{
+  "metadata": {
+    "navigatorTitle": [
+      {
+        "text": "ScrollPhase",
+        "kind": "identifier"
+      }
+    ],
+    "symbolKind": "enum",
+    "fragments": [
+      {
+        "text": "enum",
+        "kind": "keyword"
+      },
+      {
+        "text": " ",
+        "kind": "text"
+      },
+      {
+        "text": "ScrollPhase",
+        "kind": "identifier"
+      }
+    ],
+    "roleHeading": "Enumeration",
+    "role": "symbol",
+    "platforms": [
+      {
+        "beta": false,
+        "deprecated": false,
+        "unavailable": false,
+        "introducedAt": "18.0",
+        "name": "iOS"
+      },
+      {
+        "introducedAt": "18.0",
+        "name": "iPadOS",
+        "beta": false,
+        "deprecated": false,
+        "unavailable": false
+      },
+      {
+        "introducedAt": "18.0",
+        "name": "Mac Catalyst",
+        "beta": false,
+        "deprecated": false,
+        "unavailable": false
+      },
+      {
+        "introducedAt": "15.0",
+        "name": "macOS",
+        "beta": false,
+        "deprecated": false,
+        "unavailable": false
+      },
+      {
+        "introducedAt": "18.0",
+        "name": "tvOS",
+        "beta": false,
+        "deprecated": false,
+        "unavailable": false
+      },
+      {
+        "introducedAt": "2.0",
+        "name": "visionOS",
+        "beta": false,
+        "deprecated": false,
+        "unavailable": false
+      },
+      {
+        "introducedAt": "11.0",
+        "name": "watchOS",
+        "beta": false,
+        "deprecated": false,
+        "unavailable": false
+      }
+    ],
+    "title": "ScrollPhase",
+    "modules": [
+      {
+        "name": "SwiftUI"
+      }
+    ],
+    "externalID": "s:7SwiftUI11ScrollPhaseO"
+  },
+  "abstract": [
+    {
+      "text": "A type that describes the state of a scroll gesture of a",
+      "type": "text"
+    },
+    {
+      "text": " ",
+      "type": "text"
+    },
+    {
+      "text": "scrollable view like a scroll view.",
+      "type": "text"
+    }
+  ],
+  "relationshipsSections": [
+    {
+      "type": "conformsTo",
+      "identifiers": [
+        "doc://com.externally.resolved.symbol/s:s15BitwiseCopyableP",
+        "doc://com.externally.resolved.symbol/s:s8CopyableP",
+        "doc://com.externally.resolved.symbol/s:s28CustomDebugStringConvertibleP",
+        "doc://com.externally.resolved.symbol/s:SQ",
+        "doc://com.externally.resolved.symbol/s:SH",
+        "doc://com.externally.resolved.symbol/s:s8SendableP",
+        "doc://com.externally.resolved.symbol/s:s16SendableMetatypeP"
+      ],
+      "kind": "relationships",
+      "title": "Conforms To"
+    }
+  ],
+  "sections": [],
+  "primaryContentSections": [
+    {
+      "kind": "declarations",
+      "declarations": [
+        {
+          "tokens": [
+            {
+              "kind": "attribute",
+              "text": "@frozen"
+            },
+            {
+              "kind": "text",
+              "text": " "
+            },
+            {
+              "kind": "keyword",
+              "text": "enum"
+            },
+            {
+              "kind": "text",
+              "text": " "
+            },
+            {
+              "kind": "identifier",
+              "text": "ScrollPhase"
+            }
+          ],
+          "platforms": [
+            "iOS",
+            "iPadOS",
+            "Mac Catalyst",
+            "macOS",
+            "tvOS",
+            "visionOS",
+            "watchOS"
+          ],
+          "languages": [
+            "swift"
+          ]
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "heading",
+          "text": "Overview",
+          "anchor": "overview",
+          "level": 2
+        },
+        {
+          "inlineContent": [
+            {
+              "type": "text",
+              "text": "A scroll gesture can be in one of four phases:"
+            },
+            {
+              "type": "text",
+              "text": " "
+            },
+            {
+              "type": "text",
+              "text": "- idle: No active scroll is occurring."
+            },
+            {
+              "type": "text",
+              "text": " "
+            },
+            {
+              "type": "text",
+              "text": "- panning: An active scroll being driven by the user"
+            },
+            {
+              "type": "text",
+              "text": " "
+            },
+            {
+              "type": "text",
+              "text": "is occurring."
+            },
+            {
+              "type": "text",
+              "text": " "
+            },
+            {
+              "type": "text",
+              "text": "- decelerating: The user has stopped driving a scroll"
+            },
+            {
+              "type": "text",
+              "text": " "
+            },
+            {
+              "type": "text",
+              "text": "and the scroll view is decelerating to its final"
+            },
+            {
+              "type": "text",
+              "text": " "
+            },
+            {
+              "type": "text",
+              "text": "target."
+            },
+            {
+              "type": "text",
+              "text": " "
+            },
+            {
+              "type": "text",
+              "text": "- animating: The system is animating to a final target"
+            },
+            {
+              "type": "text",
+              "text": " "
+            },
+            {
+              "text": "as a result of a programmatic animated scroll from",
+              "type": "text"
+            },
+            {
+              "text": " ",
+              "type": "text"
+            },
+            {
+              "text": "using a ",
+              "type": "text"
+            },
+            {
+              "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollViewReader",
+              "isActive": true,
+              "type": "reference"
+            },
+            {
+              "text": " or",
+              "type": "text"
+            },
+            {
+              "text": " ",
+              "type": "text"
+            },
+            {
+              "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/View/scrollPosition(id:anchor:)",
+              "isActive": true,
+              "type": "reference"
+            },
+            {
+              "text": " modifier.",
+              "type": "text"
+            }
+          ],
+          "type": "paragraph"
+        },
+        {
+          "inlineContent": [
+            {
+              "text": "SwiftUI provides you a value of this type when using the",
+              "type": "text"
+            },
+            {
+              "text": " ",
+              "type": "text"
+            },
+            {
+              "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/View/onScrollPhaseChange(_:)",
+              "isActive": true,
+              "type": "reference"
+            },
+            {
+              "text": " modifier.",
+              "type": "text"
+            }
+          ],
+          "type": "paragraph"
+        }
+      ],
+      "kind": "content"
+    }
+  ],
+  "variants": [
+    {
+      "traits": [
+        {
+          "interfaceLanguage": "swift"
+        }
+      ],
+      "paths": [
+        "/documentation/swiftui/scrollphase"
+      ]
+    }
+  ],
+  "identifier": {
+    "url": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPhase",
+    "interfaceLanguage": "swift"
+  },
+  "hierarchy": {
+    "paths": [
+      [
+        "doc://com.apple.documentation/documentation/technologies",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI"
+      ]
+    ]
+  },
+  "seeAlsoSections": [
+    {
+      "identifiers": [
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/View/onScrollGeometryChange(for:of:action:)",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/View/onScrollTargetVisibilityChange(idType:threshold:_:)",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/View/onScrollVisibilityChange(threshold:_:)",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/View/onScrollPhaseChange(_:)",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollGeometry",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPhaseChangeContext"
+      ],
+      "generated": true,
+      "anchor": "Responding-to-scroll-view-changes",
+      "title": "Responding to scroll view changes"
+    }
+  ],
+  "schemaVersion": {
+    "major": 0,
+    "minor": 3,
+    "patch": 0
+  },
+  "topicSections": [
+    {
+      "anchor": "Getting-scroll-gesture-states",
+      "identifiers": [
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPhase/animating",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPhase/decelerating",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPhase/idle",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPhase/interacting",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPhase/tracking"
+      ],
+      "title": "Getting scroll gesture states"
+    },
+    {
+      "identifiers": [
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPhase/isScrolling"
+      ],
+      "anchor": "Checking-for-active-scrolling",
+      "title": "Checking for active scrolling"
+    }
+  ],
+  "kind": "symbol",
+  "references": {
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPhase": {
+      "role": "symbol",
+      "kind": "symbol",
+      "fragments": [
+        {
+          "kind": "keyword",
+          "text": "enum"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "kind": "identifier",
+          "text": "ScrollPhase"
+        }
+      ],
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPhase",
+      "title": "ScrollPhase",
+      "url": "/documentation/swiftui/scrollphase",
+      "type": "topic",
+      "navigatorTitle": [
+        {
+          "kind": "identifier",
+          "text": "ScrollPhase"
+        }
+      ],
+      "abstract": [
+        {
+          "type": "text",
+          "text": "A type that describes the state of a scroll gesture of a"
+        },
+        {
+          "type": "text",
+          "text": " "
+        },
+        {
+          "type": "text",
+          "text": "scrollable view like a scroll view."
+        }
+      ]
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI": {
+      "abstract": [
+        {
+          "text": "Declare the user interface and behavior for your app on every platform.",
+          "type": "text"
+        }
+      ],
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI",
+      "role": "collection",
+      "kind": "symbol",
+      "images": [
+        {
+          "type": "card",
+          "identifier": "SwiftUI-PageImage-card.png"
+        }
+      ],
+      "url": "/documentation/swiftui",
+      "title": "SwiftUI",
+      "type": "topic"
+    },
+    "doc://com.apple.documentation/documentation/technologies": {
+      "abstract": [
+        {
+          "text": "",
+          "type": "text"
+        }
+      ],
+      "identifier": "doc://com.apple.documentation/documentation/technologies",
+      "role": "overview",
+      "kind": "technologies",
+      "url": "/documentation/technologies",
+      "title": "Technologies",
+      "type": "topic"
+    },
+    "SwiftUI-PageImage-card.png": {
+      "identifier": "SwiftUI-PageImage-card.png",
+      "type": "image",
+      "alt": "A stylized Swift logo using dashes on a white or blue background.",
+      "variants": [
+        {
+          "url": "https://docs-assets.developer.apple.com/published/a0ca0e84aabe29cd5bf4d29b4ab5046e/SwiftUI-PageImage-card%402x.png",
+          "traits": [
+            "2x",
+            "light"
+          ]
+        },
+        {
+          "url": "https://docs-assets.developer.apple.com/published/a6ddc19a84fa8156d8ec8353a9622d0e/SwiftUI-PageImage-card~dark%402x.png",
+          "traits": [
+            "2x",
+            "dark"
+          ]
+        }
+      ]
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPhaseChangeContext": {
+      "role": "symbol",
+      "kind": "symbol",
+      "fragments": [
+        {
+          "kind": "keyword",
+          "text": "struct"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "kind": "identifier",
+          "text": "ScrollPhaseChangeContext"
+        }
+      ],
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPhaseChangeContext",
+      "title": "ScrollPhaseChangeContext",
+      "url": "/documentation/swiftui/scrollphasechangecontext",
+      "type": "topic",
+      "navigatorTitle": [
+        {
+          "kind": "identifier",
+          "text": "ScrollPhaseChangeContext"
+        }
+      ],
+      "abstract": [
+        {
+          "type": "text",
+          "text": "A type that provides you with more content when the phase of a scroll"
+        },
+        {
+          "type": "text",
+          "text": " "
+        },
+        {
+          "type": "text",
+          "text": "view changes."
+        }
+      ]
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPhase/isScrolling": {
+      "kind": "symbol",
+      "title": "isScrolling",
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPhase/isScrolling",
+      "url": "/documentation/swiftui/scrollphase/isscrolling",
+      "role": "symbol",
+      "type": "topic",
+      "fragments": [
+        {
+          "text": "var",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "isScrolling",
+          "kind": "identifier"
+        },
+        {
+          "text": ": ",
+          "kind": "text"
+        },
+        {
+          "text": "Bool",
+          "kind": "typeIdentifier",
+          "preciseIdentifier": "s:Sb"
+        }
+      ],
+      "abstract": [
+        {
+          "type": "text",
+          "text": "Whether the scroll view is actively scrolling."
+        }
+      ]
+    },
+    "doc://com.externally.resolved.symbol/s:SQ": {
+      "role": "symbol",
+      "abstract": [
+        {
+          "text": "A type that can be compared for value equality.",
+          "type": "text"
+        }
+      ],
+      "fragments": [
+        {
+          "text": "protocol",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "Equatable",
+          "kind": "identifier"
+        }
+      ],
+      "identifier": "doc://com.externally.resolved.symbol/s:SQ",
+      "url": "/documentation/Swift/Equatable",
+      "title": "Equatable",
+      "kind": "symbol",
+      "type": "topic"
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/View/onScrollTargetVisibilityChange(idType:threshold:_:)": {
+      "title": "onScrollTargetVisibilityChange(idType:threshold:_:)",
+      "type": "topic",
+      "kind": "symbol",
+      "abstract": [
+        {
+          "text": "Adds an action to be called with information about what views would",
+          "type": "text"
+        },
+        {
+          "text": " ",
+          "type": "text"
+        },
+        {
+          "text": "be considered visible.",
+          "type": "text"
+        }
+      ],
+      "fragments": [
+        {
+          "kind": "keyword",
+          "text": "func"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "kind": "identifier",
+          "text": "onScrollTargetVisibilityChange"
+        },
+        {
+          "kind": "text",
+          "text": "<"
+        },
+        {
+          "kind": "genericParameter",
+          "text": "ID"
+        },
+        {
+          "kind": "text",
+          "text": ">("
+        },
+        {
+          "kind": "externalParam",
+          "text": "idType"
+        },
+        {
+          "kind": "text",
+          "text": ": "
+        },
+        {
+          "kind": "typeIdentifier",
+          "text": "ID"
+        },
+        {
+          "kind": "text",
+          "text": ".Type, "
+        },
+        {
+          "kind": "externalParam",
+          "text": "threshold"
+        },
+        {
+          "kind": "text",
+          "text": ": "
+        },
+        {
+          "kind": "typeIdentifier",
+          "text": "Double",
+          "preciseIdentifier": "s:Sd"
+        },
+        {
+          "kind": "text",
+          "text": ", (["
+        },
+        {
+          "kind": "typeIdentifier",
+          "text": "ID"
+        },
+        {
+          "kind": "text",
+          "text": "]) -> "
+        },
+        {
+          "kind": "typeIdentifier",
+          "text": "Void",
+          "preciseIdentifier": "s:s4Voida"
+        },
+        {
+          "kind": "text",
+          "text": ") -> "
+        },
+        {
+          "kind": "keyword",
+          "text": "some"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "kind": "typeIdentifier",
+          "text": "View",
+          "preciseIdentifier": "s:7SwiftUI4ViewP"
+        }
+      ],
+      "role": "symbol",
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/View/onScrollTargetVisibilityChange(idType:threshold:_:)",
+      "url": "/documentation/swiftui/view/onscrolltargetvisibilitychange(idtype:threshold:_:)"
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPhase/decelerating": {
+      "role": "symbol",
+      "type": "topic",
+      "title": "ScrollPhase.decelerating",
+      "url": "/documentation/swiftui/scrollphase/decelerating",
+      "fragments": [
+        {
+          "text": "case",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "decelerating",
+          "kind": "identifier"
+        }
+      ],
+      "abstract": [
+        {
+          "text": "The decelerating phase where the user use has stopped",
+          "type": "text"
+        },
+        {
+          "text": " ",
+          "type": "text"
+        },
+        {
+          "text": "interacting with the scroll view and the scroll view",
+          "type": "text"
+        },
+        {
+          "text": " ",
+          "type": "text"
+        },
+        {
+          "text": "is decelerating towards its final target.",
+          "type": "text"
+        }
+      ],
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPhase/decelerating",
+      "kind": "symbol"
+    },
+    "doc://com.externally.resolved.symbol/s:s28CustomDebugStringConvertibleP": {
+      "url": "/documentation/Swift/CustomDebugStringConvertible",
+      "kind": "symbol",
+      "fragments": [
+        {
+          "kind": "keyword",
+          "text": "protocol"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "kind": "identifier",
+          "text": "CustomDebugStringConvertible"
+        }
+      ],
+      "identifier": "doc://com.externally.resolved.symbol/s:s28CustomDebugStringConvertibleP",
+      "type": "topic",
+      "title": "CustomDebugStringConvertible",
+      "abstract": [
+        {
+          "type": "text",
+          "text": "A type with a customized textual representation suitable for debugging purposes."
+        }
+      ],
+      "role": "symbol"
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPhase/interacting": {
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPhase/interacting",
+      "fragments": [
+        {
+          "kind": "keyword",
+          "text": "case"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "kind": "identifier",
+          "text": "interacting"
+        }
+      ],
+      "title": "ScrollPhase.interacting",
+      "type": "topic",
+      "url": "/documentation/swiftui/scrollphase/interacting",
+      "role": "symbol",
+      "kind": "symbol",
+      "abstract": [
+        {
+          "type": "text",
+          "text": "The interacting phase where the user is interacting"
+        },
+        {
+          "type": "text",
+          "text": " "
+        },
+        {
+          "type": "text",
+          "text": "with the scroll view."
+        }
+      ]
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollGeometry": {
+      "role": "symbol",
+      "kind": "symbol",
+      "fragments": [
+        {
+          "kind": "keyword",
+          "text": "struct"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "kind": "identifier",
+          "text": "ScrollGeometry"
+        }
+      ],
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollGeometry",
+      "title": "ScrollGeometry",
+      "url": "/documentation/swiftui/scrollgeometry",
+      "type": "topic",
+      "navigatorTitle": [
+        {
+          "kind": "identifier",
+          "text": "ScrollGeometry"
+        }
+      ],
+      "abstract": [
+        {
+          "type": "text",
+          "text": "A type that defines the geometry of a scroll view."
+        }
+      ]
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollViewReader": {
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollViewReader",
+      "role": "symbol",
+      "type": "topic",
+      "navigatorTitle": [
+        {
+          "text": "ScrollViewReader",
+          "kind": "identifier"
+        }
+      ],
+      "abstract": [
+        {
+          "type": "text",
+          "text": "A view that provides programmatic scrolling, by working with a proxy"
+        },
+        {
+          "type": "text",
+          "text": " "
+        },
+        {
+          "type": "text",
+          "text": "to scroll to known child views."
+        }
+      ],
+      "fragments": [
+        {
+          "text": "struct",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "ScrollViewReader",
+          "kind": "identifier"
+        }
+      ],
+      "url": "/documentation/swiftui/scrollviewreader",
+      "kind": "symbol",
+      "title": "ScrollViewReader"
+    },
+    "doc://com.externally.resolved.symbol/s:SH": {
+      "role": "symbol",
+      "abstract": [
+        {
+          "text": "A type that can be hashed into a `Hasher` to produce an integer hash value.",
+          "type": "text"
+        }
+      ],
+      "fragments": [
+        {
+          "text": "protocol",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "Hashable",
+          "kind": "identifier"
+        },
+        {
+          "text": " : ",
+          "kind": "text"
+        },
+        {
+          "text": "Equatable",
+          "preciseIdentifier": "s:SQ",
+          "kind": "typeIdentifier"
+        }
+      ],
+      "identifier": "doc://com.externally.resolved.symbol/s:SH",
+      "url": "/documentation/Swift/Hashable",
+      "title": "Hashable",
+      "kind": "symbol",
+      "type": "topic"
+    },
+    "doc://com.externally.resolved.symbol/s:s16SendableMetatypeP": {
+      "role": "symbol",
+      "abstract": [
+        {
+          "text": "A type whose metatype can be shared across arbitrary concurrent contexts without introducing a risk of data races. When a generic type `T` conforms to `SendableMetatype`, its metatype `T.Type` conforms to `Sendable`.  All concrete types implicitly conform to the `SendableMetatype` protocol, so its primary purpose is in generic code to prohibit the use of isolated conformances along with the generic type.",
+          "type": "text"
+        }
+      ],
+      "fragments": [
+        {
+          "text": "protocol",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "SendableMetatype",
+          "kind": "identifier"
+        },
+        {
+          "text": " : ~Copyable, ~Escapable",
+          "kind": "text"
+        }
+      ],
+      "identifier": "doc://com.externally.resolved.symbol/s:s16SendableMetatypeP",
+      "url": "/documentation/Swift/SendableMetatype",
+      "title": "SendableMetatype",
+      "kind": "symbol",
+      "type": "topic"
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPhase/idle": {
+      "role": "symbol",
+      "type": "topic",
+      "title": "ScrollPhase.idle",
+      "url": "/documentation/swiftui/scrollphase/idle",
+      "fragments": [
+        {
+          "text": "case",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "idle",
+          "kind": "identifier"
+        }
+      ],
+      "abstract": [
+        {
+          "text": "The idle phase where no kind of scrolling is occurring.",
+          "type": "text"
+        }
+      ],
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPhase/idle",
+      "kind": "symbol"
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/View/onScrollVisibilityChange(threshold:_:)": {
+      "role": "symbol",
+      "abstract": [
+        {
+          "type": "text",
+          "text": "Adds an action to be called when the view crosses the threshold to be considered on/off screen."
+        }
+      ],
+      "fragments": [
+        {
+          "kind": "keyword",
+          "text": "func"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "kind": "identifier",
+          "text": "onScrollVisibilityChange"
+        },
+        {
+          "kind": "text",
+          "text": "("
+        },
+        {
+          "kind": "externalParam",
+          "text": "threshold"
+        },
+        {
+          "kind": "text",
+          "text": ": "
+        },
+        {
+          "kind": "typeIdentifier",
+          "preciseIdentifier": "s:Sd",
+          "text": "Double"
+        },
+        {
+          "text": ", (",
+          "kind": "text"
+        },
+        {
+          "text": "Bool",
+          "preciseIdentifier": "s:Sb",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": ") -> ",
+          "kind": "text"
+        },
+        {
+          "text": "Void",
+          "kind": "typeIdentifier",
+          "preciseIdentifier": "s:s4Voida"
+        },
+        {
+          "text": ") -> ",
+          "kind": "text"
+        },
+        {
+          "text": "some",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "View",
+          "preciseIdentifier": "s:7SwiftUI4ViewP",
+          "kind": "typeIdentifier"
+        }
+      ],
+      "title": "onScrollVisibilityChange(threshold:_:)",
+      "type": "topic",
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/View/onScrollVisibilityChange(threshold:_:)",
+      "url": "/documentation/swiftui/view/onscrollvisibilitychange(threshold:_:)",
+      "kind": "symbol"
+    },
+    "doc://com.externally.resolved.symbol/s:s8SendableP": {
+      "role": "symbol",
+      "abstract": [
+        {
+          "text": "A thread-safe type whose values can be shared across arbitrary concurrent contexts without introducing a risk of data races.",
+          "type": "text"
+        }
+      ],
+      "fragments": [
+        {
+          "text": "protocol",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "Sendable",
+          "kind": "identifier"
+        },
+        {
+          "text": " : ",
+          "kind": "text"
+        },
+        {
+          "text": "SendableMetatype",
+          "preciseIdentifier": "s:s16SendableMetatypeP",
+          "kind": "typeIdentifier"
+        }
+      ],
+      "identifier": "doc://com.externally.resolved.symbol/s:s8SendableP",
+      "url": "/documentation/Swift/Sendable",
+      "title": "Sendable",
+      "kind": "symbol",
+      "type": "topic"
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/View/scrollPosition(id:anchor:)": {
+      "role": "symbol",
+      "type": "topic",
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/View/scrollPosition(id:anchor:)",
+      "fragments": [
+        {
+          "kind": "keyword",
+          "text": "func"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "kind": "identifier",
+          "text": "scrollPosition"
+        },
+        {
+          "kind": "text",
+          "text": "("
+        },
+        {
+          "kind": "externalParam",
+          "text": "id"
+        },
+        {
+          "kind": "text",
+          "text": ": "
+        },
+        {
+          "kind": "typeIdentifier",
+          "text": "Binding",
+          "preciseIdentifier": "s:7SwiftUI7BindingV"
+        },
+        {
+          "kind": "text",
+          "text": "<("
+        },
+        {
+          "kind": "keyword",
+          "text": "some"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "kind": "typeIdentifier",
+          "text": "Hashable",
+          "preciseIdentifier": "s:SH"
+        },
+        {
+          "kind": "text",
+          "text": ")?>, "
+        },
+        {
+          "kind": "externalParam",
+          "text": "anchor"
+        },
+        {
+          "kind": "text",
+          "text": ": "
+        },
+        {
+          "kind": "typeIdentifier",
+          "text": "UnitPoint",
+          "preciseIdentifier": "s:7SwiftUI9UnitPointV"
+        },
+        {
+          "kind": "text",
+          "text": "?) -> "
+        },
+        {
+          "kind": "keyword",
+          "text": "some"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "kind": "typeIdentifier",
+          "text": "View",
+          "preciseIdentifier": "s:7SwiftUI4ViewP"
+        }
+      ],
+      "url": "/documentation/swiftui/view/scrollposition(id:anchor:)",
+      "title": "scrollPosition(id:anchor:)",
+      "kind": "symbol",
+      "abstract": [
+        {
+          "text": "Associates a binding to be updated when a scroll view within this",
+          "type": "text"
+        },
+        {
+          "text": " ",
+          "type": "text"
+        },
+        {
+          "text": "view scrolls.",
+          "type": "text"
+        }
+      ]
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPhase/animating": {
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPhase/animating",
+      "fragments": [
+        {
+          "kind": "keyword",
+          "text": "case"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "kind": "identifier",
+          "text": "animating"
+        }
+      ],
+      "title": "ScrollPhase.animating",
+      "type": "topic",
+      "url": "/documentation/swiftui/scrollphase/animating",
+      "role": "symbol",
+      "kind": "symbol",
+      "abstract": [
+        {
+          "type": "text",
+          "text": "The animating phase where the scroll view is animating"
+        },
+        {
+          "type": "text",
+          "text": " "
+        },
+        {
+          "type": "text",
+          "text": "towards a final target."
+        }
+      ]
+    },
+    "doc://com.externally.resolved.symbol/s:s15BitwiseCopyableP": {
+      "kind": "symbol",
+      "identifier": "doc://com.externally.resolved.symbol/s:s15BitwiseCopyableP",
+      "fragments": [
+        {
+          "kind": "keyword",
+          "text": "protocol"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "kind": "identifier",
+          "text": "BitwiseCopyable"
+        },
+        {
+          "kind": "text",
+          "text": " : ~Escapable"
+        }
+      ],
+      "type": "topic",
+      "title": "BitwiseCopyable",
+      "url": "/documentation/Swift/BitwiseCopyable",
+      "role": "symbol",
+      "abstract": [
+        {
+          "type": "text",
+          "text": ""
+        }
+      ]
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/View/onScrollPhaseChange(_:)": {
+      "role": "symbol",
+      "url": "/documentation/swiftui/view/onscrollphasechange(_:)",
+      "fragments": [
+        {
+          "text": "func",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "onScrollPhaseChange",
+          "kind": "identifier"
+        },
+        {
+          "text": "(",
+          "kind": "text"
+        },
+        {
+          "text": "_",
+          "kind": "externalParam"
+        },
+        {
+          "text": ":)",
+          "kind": "text"
+        }
+      ],
+      "abstract": [
+        {
+          "text": "Adds an action to perform when the scroll phase of the first scroll",
+          "type": "text"
+        },
+        {
+          "text": " ",
+          "type": "text"
+        },
+        {
+          "text": "view in the hierarchy changes.",
+          "type": "text"
+        }
+      ],
+      "title": "onScrollPhaseChange(_:)",
+      "kind": "symbol",
+      "type": "topic",
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/View/onScrollPhaseChange(_:)"
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPhase/tracking": {
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPhase/tracking",
+      "fragments": [
+        {
+          "kind": "keyword",
+          "text": "case"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "kind": "identifier",
+          "text": "tracking"
+        }
+      ],
+      "title": "ScrollPhase.tracking",
+      "type": "topic",
+      "url": "/documentation/swiftui/scrollphase/tracking",
+      "role": "symbol",
+      "kind": "symbol",
+      "abstract": [
+        {
+          "type": "text",
+          "text": "The tracking phase where the scroll view is tracking"
+        },
+        {
+          "type": "text",
+          "text": " "
+        },
+        {
+          "type": "text",
+          "text": "a potential scroll by the user but the user hasn’t started"
+        },
+        {
+          "type": "text",
+          "text": " "
+        },
+        {
+          "type": "text",
+          "text": "a scroll."
+        }
+      ]
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/View/onScrollGeometryChange(for:of:action:)": {
+      "kind": "symbol",
+      "role": "symbol",
+      "title": "onScrollGeometryChange(for:of:action:)",
+      "url": "/documentation/swiftui/view/onscrollgeometrychange(for:of:action:)",
+      "type": "topic",
+      "fragments": [
+        {
+          "text": "func",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "onScrollGeometryChange",
+          "kind": "identifier"
+        },
+        {
+          "text": "<",
+          "kind": "text"
+        },
+        {
+          "text": "T",
+          "kind": "genericParameter"
+        },
+        {
+          "text": ">(",
+          "kind": "text"
+        },
+        {
+          "text": "for",
+          "kind": "externalParam"
+        },
+        {
+          "text": ": ",
+          "kind": "text"
+        },
+        {
+          "text": "T",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": ".Type, ",
+          "kind": "text"
+        },
+        {
+          "text": "of",
+          "kind": "externalParam"
+        },
+        {
+          "text": ": (",
+          "kind": "text"
+        },
+        {
+          "text": "ScrollGeometry",
+          "preciseIdentifier": "s:7SwiftUI14ScrollGeometryV",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": ") -> ",
+          "kind": "text"
+        },
+        {
+          "text": "T",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": ", ",
+          "kind": "text"
+        },
+        {
+          "text": "action",
+          "kind": "externalParam"
+        },
+        {
+          "text": ": (",
+          "kind": "text"
+        },
+        {
+          "text": "T",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": ", ",
+          "kind": "text"
+        },
+        {
+          "text": "T",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": ") -> ",
+          "kind": "text"
+        },
+        {
+          "text": "Void",
+          "preciseIdentifier": "s:s4Voida",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": ") -> ",
+          "kind": "text"
+        },
+        {
+          "text": "some",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "View",
+          "preciseIdentifier": "s:7SwiftUI4ViewP",
+          "kind": "typeIdentifier"
+        }
+      ],
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/View/onScrollGeometryChange(for:of:action:)",
+      "abstract": [
+        {
+          "text": "Adds an action to be performed when a value, created from a",
+          "type": "text"
+        },
+        {
+          "text": " ",
+          "type": "text"
+        },
+        {
+          "text": "scroll geometry, changes.",
+          "type": "text"
+        }
+      ]
+    },
+    "doc://com.externally.resolved.symbol/s:s8CopyableP": {
+      "title": "Copyable",
+      "url": "/documentation/Swift/Copyable",
+      "role": "symbol",
+      "type": "topic",
+      "identifier": "doc://com.externally.resolved.symbol/s:s8CopyableP",
+      "fragments": [
+        {
+          "text": "protocol",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "Copyable",
+          "kind": "identifier"
+        }
+      ],
+      "abstract": [
+        {
+          "text": "A type whose values can be implicitly or explicitly copied.",
+          "type": "text"
+        }
+      ],
+      "kind": "symbol"
+    }
+  },
+  "legalNotices": {
+    "copyright": "Copyright &copy; 2025 Apple Inc. All rights reserved.",
+    "termsOfUse": "https://www.apple.com/legal/internet-services/terms/site.html",
+    "privacyPolicy": "https://www.apple.com/privacy/privacy-policy"
+  }
+}

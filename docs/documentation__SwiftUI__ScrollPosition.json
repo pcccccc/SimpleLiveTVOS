@@ -1,0 +1,2720 @@
+{
+  "schemaVersion": {
+    "major": 0,
+    "minor": 3,
+    "patch": 0
+  },
+  "identifier": {
+    "url": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition",
+    "interfaceLanguage": "swift"
+  },
+  "variants": [
+    {
+      "traits": [
+        {
+          "interfaceLanguage": "swift"
+        }
+      ],
+      "paths": [
+        "/documentation/swiftui/scrollposition"
+      ]
+    }
+  ],
+  "sections": [],
+  "kind": "symbol",
+  "metadata": {
+    "platforms": [
+      {
+        "name": "iOS",
+        "beta": false,
+        "introducedAt": "18.0",
+        "unavailable": false,
+        "deprecated": false
+      },
+      {
+        "name": "iPadOS",
+        "beta": false,
+        "introducedAt": "18.0",
+        "unavailable": false,
+        "deprecated": false
+      },
+      {
+        "name": "Mac Catalyst",
+        "beta": false,
+        "introducedAt": "18.0",
+        "unavailable": false,
+        "deprecated": false
+      },
+      {
+        "name": "macOS",
+        "beta": false,
+        "introducedAt": "15.0",
+        "unavailable": false,
+        "deprecated": false
+      },
+      {
+        "introducedAt": "18.0",
+        "deprecated": false,
+        "unavailable": false,
+        "beta": false,
+        "name": "tvOS"
+      },
+      {
+        "introducedAt": "2.0",
+        "deprecated": false,
+        "unavailable": false,
+        "beta": false,
+        "name": "visionOS"
+      },
+      {
+        "introducedAt": "11.0",
+        "deprecated": false,
+        "unavailable": false,
+        "beta": false,
+        "name": "watchOS"
+      }
+    ],
+    "roleHeading": "Structure",
+    "externalID": "s:7SwiftUI14ScrollPositionV",
+    "fragments": [
+      {
+        "text": "struct",
+        "kind": "keyword"
+      },
+      {
+        "text": " ",
+        "kind": "text"
+      },
+      {
+        "text": "ScrollPosition",
+        "kind": "identifier"
+      }
+    ],
+    "navigatorTitle": [
+      {
+        "text": "ScrollPosition",
+        "kind": "identifier"
+      }
+    ],
+    "role": "symbol",
+    "title": "ScrollPosition",
+    "modules": [
+      {
+        "name": "SwiftUI"
+      }
+    ],
+    "symbolKind": "struct"
+  },
+  "abstract": [
+    {
+      "text": "A type that defines the semantic position of where a scroll view is",
+      "type": "text"
+    },
+    {
+      "text": " ",
+      "type": "text"
+    },
+    {
+      "text": "scrolled within its content.",
+      "type": "text"
+    }
+  ],
+  "topicSections": [
+    {
+      "generated": true,
+      "identifiers": [
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/init(id:anchor:)",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/init(idType:)",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/init(idType:edge:)",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/init(idType:point:)",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/init(idType:x:)",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/init(idType:x:y:)",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/init(idType:y:)"
+      ],
+      "title": "Initializers",
+      "anchor": "Initializers"
+    },
+    {
+      "generated": true,
+      "identifiers": [
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/edge",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/isPositionedByUser",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/point",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/viewID",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/x",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/y"
+      ],
+      "title": "Instance Properties",
+      "anchor": "Instance-Properties"
+    },
+    {
+      "generated": true,
+      "identifiers": [
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/scrollTo(edge:)",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/scrollTo(id:anchor:)",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/scrollTo(point:)",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/scrollTo(x:)",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/scrollTo(x:y:)",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/scrollTo(y:)",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/viewID(type:)"
+      ],
+      "title": "Instance Methods",
+      "anchor": "Instance-Methods"
+    }
+  ],
+  "primaryContentSections": [
+    {
+      "declarations": [
+        {
+          "tokens": [
+            {
+              "kind": "keyword",
+              "text": "struct"
+            },
+            {
+              "kind": "text",
+              "text": " "
+            },
+            {
+              "kind": "identifier",
+              "text": "ScrollPosition"
+            }
+          ],
+          "languages": [
+            "swift"
+          ],
+          "platforms": [
+            "iOS",
+            "iPadOS",
+            "Mac Catalyst",
+            "macOS",
+            "tvOS",
+            "visionOS",
+            "watchOS"
+          ]
+        }
+      ],
+      "kind": "declarations"
+    },
+    {
+      "content": [
+        {
+          "anchor": "overview",
+          "text": "Overview",
+          "type": "heading",
+          "level": 2
+        },
+        {
+          "type": "paragraph",
+          "inlineContent": [
+            {
+              "type": "text",
+              "text": "Use this type along with the "
+            },
+            {
+              "type": "codeVoice",
+              "code": "View/scrollPosition(_:)"
+            },
+            {
+              "type": "text",
+              "text": " "
+            },
+            {
+              "type": "text",
+              "text": "modifier to control where a scroll view is positioned. You"
+            },
+            {
+              "type": "text",
+              "text": " "
+            },
+            {
+              "type": "text",
+              "text": "can use this type to scroll in a variety of ways:"
+            }
+          ]
+        },
+        {
+          "items": [
+            {
+              "content": [
+                {
+                  "type": "paragraph",
+                  "inlineContent": [
+                    {
+                      "text": "scroll to a view with a provided identity",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "content": [
+                {
+                  "type": "paragraph",
+                  "inlineContent": [
+                    {
+                      "type": "text",
+                      "text": "scroll to a concrete offset"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "content": [
+                {
+                  "type": "paragraph",
+                  "inlineContent": [
+                    {
+                      "text": "scroll to an edge",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "type": "unorderedList"
+        },
+        {
+          "type": "paragraph",
+          "inlineContent": [
+            {
+              "type": "text",
+              "text": "You can create a scroll position with a specified view identity type"
+            }
+          ]
+        },
+        {
+          "syntax": "swift",
+          "type": "codeListing",
+          "code": [
+            "@State private var position = ScrollPosition(idType: MyItem.ID.self)"
+          ]
+        },
+        {
+          "type": "paragraph",
+          "inlineContent": [
+            {
+              "type": "text",
+              "text": "SwiftUI will use that along with the views in the scroll view’s"
+            },
+            {
+              "type": "text",
+              "text": " "
+            },
+            {
+              "type": "text",
+              "text": "scroll target layout to programmatically scroll to those views and to"
+            },
+            {
+              "type": "text",
+              "text": " "
+            },
+            {
+              "type": "text",
+              "text": "update the "
+            },
+            {
+              "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/viewID",
+              "isActive": true,
+              "type": "reference"
+            },
+            {
+              "type": "text",
+              "text": " property as the user scrolls."
+            },
+            {
+              "type": "text",
+              "text": " "
+            },
+            {
+              "type": "text",
+              "text": "Use the "
+            },
+            {
+              "code": "View/scrollTargetLayout()",
+              "type": "codeVoice"
+            },
+            {
+              "type": "text",
+              "text": " modifier to configure"
+            },
+            {
+              "type": "text",
+              "text": " "
+            },
+            {
+              "type": "text",
+              "text": "which layout contains your scroll targets."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "inlineContent": [
+            {
+              "type": "text",
+              "text": "When scrolling to a view with an identifier, SwiftUI will update"
+            },
+            {
+              "type": "text",
+              "text": " "
+            },
+            {
+              "type": "text",
+              "text": "the position with the value of the top-most view scrolled within"
+            },
+            {
+              "type": "text",
+              "text": " "
+            },
+            {
+              "type": "text",
+              "text": "the visible region of the scroll view."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "inlineContent": [
+            {
+              "text": "In the following example, the position binding will update to reflect",
+              "type": "text"
+            },
+            {
+              "text": " ",
+              "type": "text"
+            },
+            {
+              "text": "the top-most ItemView as the scroll view scrolls.",
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "syntax": "swift",
+          "type": "codeListing",
+          "code": [
+            "@Binding var items: [MyItem]",
+            "@State private var position: ScrollPosition",
+            "    = .init(idType: MyItem.ID.self)",
+            "",
+            "ScrollView {",
+            "    LazyVStack {",
+            "        ForEach(items) { item in",
+            "            ItemView(item)",
+            "        }",
+            "    }",
+            "    .scrollTargetLayout()",
+            "}",
+            ".scrollPosition($scrolledID)"
+          ]
+        },
+        {
+          "type": "paragraph",
+          "inlineContent": [
+            {
+              "type": "text",
+              "text": "You can then query the currently scrolled id by using the"
+            },
+            {
+              "type": "text",
+              "text": " "
+            },
+            {
+              "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/viewID(type:)",
+              "isActive": true,
+              "type": "reference"
+            },
+            {
+              "type": "text",
+              "text": "."
+            }
+          ]
+        },
+        {
+          "syntax": "swift",
+          "type": "codeListing",
+          "code": [
+            "let viewID: MyItem.ID = position.viewID(type: MyItem.ID.self)"
+          ]
+        },
+        {
+          "type": "paragraph",
+          "inlineContent": [
+            {
+              "text": "While most use cases will use view identity based scrolling, you",
+              "type": "text"
+            },
+            {
+              "text": " ",
+              "type": "text"
+            },
+            {
+              "text": "can also use the scroll position type to scroll to offsets or edges.",
+              "type": "text"
+            },
+            {
+              "text": " ",
+              "type": "text"
+            },
+            {
+              "text": "For example, you can create a button that scrolls to the bottom of",
+              "type": "text"
+            },
+            {
+              "text": " ",
+              "type": "text"
+            },
+            {
+              "text": "the scroll view by specifying an edge.",
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "syntax": "swift",
+          "type": "codeListing",
+          "code": [
+            "Button(\"Scroll to bottom\") {",
+            "    position.scrollTo(edge: .bottom)",
+            "}"
+          ]
+        },
+        {
+          "type": "paragraph",
+          "inlineContent": [
+            {
+              "type": "text",
+              "text": "When configuring a scroll position, SwiftUI will attempt to keep that"
+            },
+            {
+              "type": "text",
+              "text": " "
+            },
+            {
+              "type": "text",
+              "text": "position stable. For an edge, that means keeping a top aligned"
+            },
+            {
+              "type": "text",
+              "text": " "
+            },
+            {
+              "type": "text",
+              "text": "scroll view scrolled to the top if the content size changes."
+            },
+            {
+              "type": "text",
+              "text": " "
+            },
+            {
+              "type": "text",
+              "text": "For a point, SwiftUI won’t attempt to keep that exact offset scrolled"
+            },
+            {
+              "type": "text",
+              "text": " "
+            },
+            {
+              "type": "text",
+              "text": "when the content size changes nor will it update to a new offset"
+            },
+            {
+              "type": "text",
+              "text": " "
+            },
+            {
+              "type": "text",
+              "text": "when that changes."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "inlineContent": [
+            {
+              "text": "For view identity positions, SwiftUI will attempt to keep the view with",
+              "type": "text"
+            },
+            {
+              "text": " ",
+              "type": "text"
+            },
+            {
+              "text": "the identity specified in the provided binding visible when events occur",
+              "type": "text"
+            },
+            {
+              "text": " ",
+              "type": "text"
+            },
+            {
+              "text": "that might cause it to be scrolled out of view by the system.",
+              "type": "text"
+            },
+            {
+              "text": " ",
+              "type": "text"
+            },
+            {
+              "text": "Some examples of these include:",
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "items": [
+            {
+              "content": [
+                {
+                  "inlineContent": [
+                    {
+                      "type": "text",
+                      "text": "The data backing the content of a scroll view is re-ordered."
+                    }
+                  ],
+                  "type": "paragraph"
+                }
+              ]
+            },
+            {
+              "content": [
+                {
+                  "inlineContent": [
+                    {
+                      "type": "text",
+                      "text": "The size of the scroll view changes, like when a window is resized"
+                    },
+                    {
+                      "type": "text",
+                      "text": " "
+                    },
+                    {
+                      "type": "text",
+                      "text": "on macOS or during a rotation on iOS."
+                    }
+                  ],
+                  "type": "paragraph"
+                }
+              ]
+            },
+            {
+              "content": [
+                {
+                  "inlineContent": [
+                    {
+                      "text": "The scroll view initially lays out it content defaulting to",
+                      "type": "text"
+                    },
+                    {
+                      "text": " ",
+                      "type": "text"
+                    },
+                    {
+                      "text": "the top most view, but the binding has a different view’s identity.",
+                      "type": "text"
+                    }
+                  ],
+                  "type": "paragraph"
+                }
+              ]
+            }
+          ],
+          "type": "unorderedList"
+        },
+        {
+          "type": "paragraph",
+          "inlineContent": [
+            {
+              "text": "You can provide an anchor to a view identity based position to:",
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "items": [
+            {
+              "content": [
+                {
+                  "type": "paragraph",
+                  "inlineContent": [
+                    {
+                      "type": "text",
+                      "text": "Influence which view the system chooses as the view whose"
+                    },
+                    {
+                      "type": "text",
+                      "text": " "
+                    },
+                    {
+                      "type": "text",
+                      "text": "identity value will update the providing binding as the scroll"
+                    },
+                    {
+                      "type": "text",
+                      "text": " "
+                    },
+                    {
+                      "type": "text",
+                      "text": "view scrolls."
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "content": [
+                {
+                  "type": "paragraph",
+                  "inlineContent": [
+                    {
+                      "text": "Control the alignment of the view when scrolling to a view",
+                      "type": "text"
+                    },
+                    {
+                      "text": " ",
+                      "type": "text"
+                    },
+                    {
+                      "text": "when writing a new binding value.",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "type": "unorderedList"
+        },
+        {
+          "type": "paragraph",
+          "inlineContent": [
+            {
+              "text": "In the example below, the bottom most view will be chosen to update the",
+              "type": "text"
+            },
+            {
+              "text": " ",
+              "type": "text"
+            },
+            {
+              "text": "position binding with.",
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "syntax": "swift",
+          "type": "codeListing",
+          "code": [
+            "ScrollView {",
+            "    LazyVStack {",
+            "        ForEach(items) { item in",
+            "            ItemView(item)",
+            "        }",
+            "    }",
+            "    .scrollTargetLayout()",
+            "}",
+            ".scrollPosition($scrolledID, anchor: .bottom)"
+          ]
+        },
+        {
+          "type": "paragraph",
+          "inlineContent": [
+            {
+              "text": "For example, providing a value of ",
+              "type": "text"
+            },
+            {
+              "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/UnitPoint/bottom",
+              "type": "reference",
+              "isActive": true
+            },
+            {
+              "text": " will prefer",
+              "type": "text"
+            },
+            {
+              "text": " ",
+              "type": "text"
+            },
+            {
+              "text": "to have the bottom-most view chosen and prefer to scroll to views",
+              "type": "text"
+            },
+            {
+              "text": " ",
+              "type": "text"
+            },
+            {
+              "text": "aligned to the bottom.",
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "inlineContent": [
+            {
+              "text": "If no anchor has been provided, SwiftUI will scroll the minimal amount",
+              "type": "text"
+            },
+            {
+              "text": " ",
+              "type": "text"
+            },
+            {
+              "text": "when using the scroll position to programmatically scroll to a view.",
+              "type": "text"
+            }
+          ]
+        }
+      ],
+      "kind": "content"
+    }
+  ],
+  "seeAlsoSections": [
+    {
+      "generated": true,
+      "identifiers": [
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/View/scrollPosition(_:anchor:)",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/View/scrollPosition(id:anchor:)",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/View/defaultScrollAnchor(_:)",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/View/defaultScrollAnchor(_:for:)",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollAnchorRole"
+      ],
+      "title": "Managing scroll position",
+      "anchor": "Managing-scroll-position"
+    }
+  ],
+  "relationshipsSections": [
+    {
+      "identifiers": [
+        "doc://com.externally.resolved.symbol/s:s8CopyableP",
+        "doc://com.externally.resolved.symbol/s:SQ",
+        "doc://com.externally.resolved.symbol/s:s8SendableP",
+        "doc://com.externally.resolved.symbol/s:s16SendableMetatypeP"
+      ],
+      "kind": "relationships",
+      "title": "Conforms To",
+      "type": "conformsTo"
+    }
+  ],
+  "hierarchy": {
+    "paths": [
+      [
+        "doc://com.apple.documentation/documentation/technologies",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI"
+      ]
+    ]
+  },
+  "references": {
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/y": {
+      "kind": "symbol",
+      "fragments": [
+        {
+          "kind": "keyword",
+          "text": "var"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "kind": "identifier",
+          "text": "y"
+        },
+        {
+          "kind": "text",
+          "text": ": "
+        },
+        {
+          "preciseIdentifier": "s:14CoreFoundation7CGFloatV",
+          "text": "CGFloat",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": "?",
+          "kind": "text"
+        }
+      ],
+      "type": "topic",
+      "title": "y",
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/y",
+      "role": "symbol",
+      "url": "/documentation/swiftui/scrollposition/y",
+      "abstract": [
+        {
+          "type": "text",
+          "text": "The positioned y value of the scroll view if configured to be in that"
+        },
+        {
+          "type": "text",
+          "text": " "
+        },
+        {
+          "type": "text",
+          "text": "position."
+        }
+      ]
+    },
+    "doc://com.externally.resolved.symbol/s:s8CopyableP": {
+      "title": "Copyable",
+      "url": "/documentation/Swift/Copyable",
+      "role": "symbol",
+      "type": "topic",
+      "identifier": "doc://com.externally.resolved.symbol/s:s8CopyableP",
+      "fragments": [
+        {
+          "text": "protocol",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "Copyable",
+          "kind": "identifier"
+        }
+      ],
+      "abstract": [
+        {
+          "text": "A type whose values can be implicitly or explicitly copied.",
+          "type": "text"
+        }
+      ],
+      "kind": "symbol"
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/scrollTo(x:)": {
+      "title": "scrollTo(x:)",
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/scrollTo(x:)",
+      "role": "symbol",
+      "url": "/documentation/swiftui/scrollposition/scrollto(x:)",
+      "abstract": [
+        {
+          "type": "text",
+          "text": "Scrolls the position of the scroll view to the x value you provide."
+        }
+      ],
+      "kind": "symbol",
+      "type": "topic",
+      "fragments": [
+        {
+          "kind": "keyword",
+          "text": "func"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "kind": "identifier",
+          "text": "scrollTo"
+        },
+        {
+          "kind": "text",
+          "text": "("
+        },
+        {
+          "kind": "externalParam",
+          "text": "x"
+        },
+        {
+          "kind": "text",
+          "text": ": "
+        },
+        {
+          "preciseIdentifier": "s:14CoreFoundation7CGFloatV",
+          "kind": "typeIdentifier",
+          "text": "CGFloat"
+        },
+        {
+          "text": ")",
+          "kind": "text"
+        }
+      ]
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/init(id:anchor:)": {
+      "role": "symbol",
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/init(id:anchor:)",
+      "type": "topic",
+      "kind": "symbol",
+      "abstract": [
+        {
+          "type": "text",
+          "text": "Creates a new scroll position to a view with a provided identity value."
+        }
+      ],
+      "url": "/documentation/swiftui/scrollposition/init(id:anchor:)",
+      "fragments": [
+        {
+          "kind": "identifier",
+          "text": "init"
+        },
+        {
+          "kind": "text",
+          "text": "("
+        },
+        {
+          "kind": "externalParam",
+          "text": "id"
+        },
+        {
+          "kind": "text",
+          "text": ": "
+        },
+        {
+          "kind": "keyword",
+          "text": "some"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "kind": "typeIdentifier",
+          "text": "Hashable",
+          "preciseIdentifier": "s:SH"
+        },
+        {
+          "kind": "text",
+          "text": " & "
+        },
+        {
+          "kind": "typeIdentifier",
+          "text": "Sendable",
+          "preciseIdentifier": "s:s8SendableP"
+        },
+        {
+          "kind": "text",
+          "text": ", "
+        },
+        {
+          "kind": "externalParam",
+          "text": "anchor"
+        },
+        {
+          "kind": "text",
+          "text": ": "
+        },
+        {
+          "kind": "typeIdentifier",
+          "text": "UnitPoint",
+          "preciseIdentifier": "s:7SwiftUI9UnitPointV"
+        },
+        {
+          "kind": "text",
+          "text": "?)"
+        }
+      ],
+      "title": "init(id:anchor:)"
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/init(idType:point:)": {
+      "fragments": [
+        {
+          "text": "init",
+          "kind": "identifier"
+        },
+        {
+          "text": "(",
+          "kind": "text"
+        },
+        {
+          "text": "idType",
+          "kind": "externalParam"
+        },
+        {
+          "text": ": (",
+          "kind": "text"
+        },
+        {
+          "text": "some",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "Hashable",
+          "preciseIdentifier": "s:SH",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": " & ",
+          "kind": "text"
+        },
+        {
+          "text": "Sendable",
+          "preciseIdentifier": "s:s8SendableP",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": ").Type, ",
+          "kind": "text"
+        },
+        {
+          "text": "point",
+          "kind": "externalParam"
+        },
+        {
+          "text": ": ",
+          "kind": "text"
+        },
+        {
+          "text": "CGPoint",
+          "preciseIdentifier": "c:@S@CGPoint",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": ")",
+          "kind": "text"
+        }
+      ],
+      "abstract": [
+        {
+          "text": "Creates a new scroll position to be scrolled to the provided point.",
+          "type": "text"
+        }
+      ],
+      "kind": "symbol",
+      "role": "symbol",
+      "type": "topic",
+      "url": "/documentation/swiftui/scrollposition/init(idtype:point:)",
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/init(idType:point:)",
+      "title": "init(idType:point:)"
+    },
+    "SwiftUI-PageImage-card.png": {
+      "type": "image",
+      "alt": "A stylized Swift logo using dashes on a white or blue background.",
+      "identifier": "SwiftUI-PageImage-card.png",
+      "variants": [
+        {
+          "url": "https://docs-assets.developer.apple.com/published/a0ca0e84aabe29cd5bf4d29b4ab5046e/SwiftUI-PageImage-card%402x.png",
+          "traits": [
+            "2x",
+            "light"
+          ]
+        },
+        {
+          "url": "https://docs-assets.developer.apple.com/published/a6ddc19a84fa8156d8ec8353a9622d0e/SwiftUI-PageImage-card~dark%402x.png",
+          "traits": [
+            "2x",
+            "dark"
+          ]
+        }
+      ]
+    },
+    "doc://com.externally.resolved.symbol/s:s8SendableP": {
+      "role": "symbol",
+      "abstract": [
+        {
+          "text": "A thread-safe type whose values can be shared across arbitrary concurrent contexts without introducing a risk of data races.",
+          "type": "text"
+        }
+      ],
+      "fragments": [
+        {
+          "text": "protocol",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "Sendable",
+          "kind": "identifier"
+        },
+        {
+          "text": " : ",
+          "kind": "text"
+        },
+        {
+          "text": "SendableMetatype",
+          "preciseIdentifier": "s:s16SendableMetatypeP",
+          "kind": "typeIdentifier"
+        }
+      ],
+      "identifier": "doc://com.externally.resolved.symbol/s:s8SendableP",
+      "url": "/documentation/Swift/Sendable",
+      "title": "Sendable",
+      "kind": "symbol",
+      "type": "topic"
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/scrollTo(point:)": {
+      "fragments": [
+        {
+          "kind": "keyword",
+          "text": "func"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "kind": "identifier",
+          "text": "scrollTo"
+        },
+        {
+          "kind": "text",
+          "text": "("
+        },
+        {
+          "kind": "externalParam",
+          "text": "point"
+        },
+        {
+          "kind": "text",
+          "text": ": "
+        },
+        {
+          "kind": "typeIdentifier",
+          "text": "CGPoint",
+          "preciseIdentifier": "c:@S@CGPoint"
+        },
+        {
+          "kind": "text",
+          "text": ")"
+        }
+      ],
+      "kind": "symbol",
+      "title": "scrollTo(point:)",
+      "abstract": [
+        {
+          "text": "Scrolls the position of the scroll view to the point you provide.",
+          "type": "text"
+        }
+      ],
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/scrollTo(point:)",
+      "role": "symbol",
+      "url": "/documentation/swiftui/scrollposition/scrollto(point:)",
+      "type": "topic"
+    },
+    "doc://com.apple.documentation/documentation/technologies": {
+      "abstract": [
+        {
+          "text": "",
+          "type": "text"
+        }
+      ],
+      "identifier": "doc://com.apple.documentation/documentation/technologies",
+      "role": "overview",
+      "kind": "technologies",
+      "url": "/documentation/technologies",
+      "title": "Technologies",
+      "type": "topic"
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/isPositionedByUser": {
+      "type": "topic",
+      "role": "symbol",
+      "title": "isPositionedByUser",
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/isPositionedByUser",
+      "url": "/documentation/swiftui/scrollposition/ispositionedbyuser",
+      "kind": "symbol",
+      "abstract": [
+        {
+          "text": "Whether the scroll view has been positioned by the user.",
+          "type": "text"
+        }
+      ],
+      "fragments": [
+        {
+          "text": "var",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "isPositionedByUser",
+          "kind": "identifier"
+        },
+        {
+          "text": ": ",
+          "kind": "text"
+        },
+        {
+          "text": "Bool",
+          "kind": "typeIdentifier",
+          "preciseIdentifier": "s:Sb"
+        }
+      ]
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/viewID(type:)": {
+      "title": "viewID(type:)",
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/viewID(type:)",
+      "role": "symbol",
+      "url": "/documentation/swiftui/scrollposition/viewid(type:)",
+      "abstract": [
+        {
+          "type": "text",
+          "text": "The id of the view positioned in the scroll view if configured"
+        },
+        {
+          "type": "text",
+          "text": " "
+        },
+        {
+          "type": "text",
+          "text": "to be in that position or the user has scrolled past a view with"
+        },
+        {
+          "type": "text",
+          "text": " "
+        },
+        {
+          "type": "text",
+          "text": "an id of matching type."
+        }
+      ],
+      "kind": "symbol",
+      "type": "topic",
+      "fragments": [
+        {
+          "kind": "keyword",
+          "text": "func"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "kind": "identifier",
+          "text": "viewID"
+        },
+        {
+          "text": "<",
+          "kind": "text"
+        },
+        {
+          "text": "T",
+          "kind": "genericParameter"
+        },
+        {
+          "text": ">(",
+          "kind": "text"
+        },
+        {
+          "text": "type",
+          "kind": "externalParam"
+        },
+        {
+          "text": ": ",
+          "kind": "text"
+        },
+        {
+          "text": "T",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": ".Type) -> ",
+          "kind": "text"
+        },
+        {
+          "text": "T",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": "?",
+          "kind": "text"
+        }
+      ]
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition": {
+      "title": "ScrollPosition",
+      "navigatorTitle": [
+        {
+          "kind": "identifier",
+          "text": "ScrollPosition"
+        }
+      ],
+      "fragments": [
+        {
+          "kind": "keyword",
+          "text": "struct"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "kind": "identifier",
+          "text": "ScrollPosition"
+        }
+      ],
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition",
+      "abstract": [
+        {
+          "type": "text",
+          "text": "A type that defines the semantic position of where a scroll view is"
+        },
+        {
+          "type": "text",
+          "text": " "
+        },
+        {
+          "type": "text",
+          "text": "scrolled within its content."
+        }
+      ],
+      "role": "symbol",
+      "kind": "symbol",
+      "url": "/documentation/swiftui/scrollposition",
+      "type": "topic"
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/init(idType:x:y:)": {
+      "abstract": [
+        {
+          "text": "Creates a new scroll position to be scrolled to the provided x value.",
+          "type": "text"
+        }
+      ],
+      "type": "topic",
+      "kind": "symbol",
+      "role": "symbol",
+      "fragments": [
+        {
+          "text": "init",
+          "kind": "identifier"
+        },
+        {
+          "text": "(",
+          "kind": "text"
+        },
+        {
+          "text": "idType",
+          "kind": "externalParam"
+        },
+        {
+          "text": ": (",
+          "kind": "text"
+        },
+        {
+          "text": "some",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "Hashable",
+          "kind": "typeIdentifier",
+          "preciseIdentifier": "s:SH"
+        },
+        {
+          "text": " & ",
+          "kind": "text"
+        },
+        {
+          "text": "Sendable",
+          "kind": "typeIdentifier",
+          "preciseIdentifier": "s:s8SendableP"
+        },
+        {
+          "text": ").Type, ",
+          "kind": "text"
+        },
+        {
+          "text": "x",
+          "kind": "externalParam"
+        },
+        {
+          "text": ": ",
+          "kind": "text"
+        },
+        {
+          "text": "CGFloat",
+          "kind": "typeIdentifier",
+          "preciseIdentifier": "s:14CoreFoundation7CGFloatV"
+        },
+        {
+          "text": ", ",
+          "kind": "text"
+        },
+        {
+          "text": "y",
+          "kind": "externalParam"
+        },
+        {
+          "text": ": ",
+          "kind": "text"
+        },
+        {
+          "text": "CGFloat",
+          "kind": "typeIdentifier",
+          "preciseIdentifier": "s:14CoreFoundation7CGFloatV"
+        },
+        {
+          "text": ")",
+          "kind": "text"
+        }
+      ],
+      "url": "/documentation/swiftui/scrollposition/init(idtype:x:y:)",
+      "title": "init(idType:x:y:)",
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/init(idType:x:y:)"
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/scrollTo(edge:)": {
+      "type": "topic",
+      "role": "symbol",
+      "title": "scrollTo(edge:)",
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/scrollTo(edge:)",
+      "url": "/documentation/swiftui/scrollposition/scrollto(edge:)",
+      "kind": "symbol",
+      "abstract": [
+        {
+          "text": "Scrolls the position of the scroll view to the edge you provide.",
+          "type": "text"
+        }
+      ],
+      "fragments": [
+        {
+          "text": "func",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "scrollTo",
+          "kind": "identifier"
+        },
+        {
+          "text": "(",
+          "kind": "text"
+        },
+        {
+          "text": "edge",
+          "kind": "externalParam"
+        },
+        {
+          "text": ": ",
+          "kind": "text"
+        },
+        {
+          "text": "Edge",
+          "kind": "typeIdentifier",
+          "preciseIdentifier": "s:7SwiftUI4EdgeO"
+        },
+        {
+          "text": ")",
+          "kind": "text"
+        }
+      ]
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/scrollTo(y:)": {
+      "title": "scrollTo(y:)",
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/scrollTo(y:)",
+      "role": "symbol",
+      "url": "/documentation/swiftui/scrollposition/scrollto(y:)",
+      "abstract": [
+        {
+          "type": "text",
+          "text": "Scrolls the position of the scroll view to the y value you provide."
+        }
+      ],
+      "kind": "symbol",
+      "type": "topic",
+      "fragments": [
+        {
+          "kind": "keyword",
+          "text": "func"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "kind": "identifier",
+          "text": "scrollTo"
+        },
+        {
+          "kind": "text",
+          "text": "("
+        },
+        {
+          "kind": "externalParam",
+          "text": "y"
+        },
+        {
+          "kind": "text",
+          "text": ": "
+        },
+        {
+          "preciseIdentifier": "s:14CoreFoundation7CGFloatV",
+          "kind": "typeIdentifier",
+          "text": "CGFloat"
+        },
+        {
+          "text": ")",
+          "kind": "text"
+        }
+      ]
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/viewID": {
+      "type": "topic",
+      "role": "symbol",
+      "title": "viewID",
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/viewID",
+      "url": "/documentation/swiftui/scrollposition/viewid",
+      "kind": "symbol",
+      "abstract": [
+        {
+          "type": "text",
+          "text": "The type-erased id of the view positioned in the scroll view if"
+        },
+        {
+          "type": "text",
+          "text": " "
+        },
+        {
+          "type": "text",
+          "text": "configured to be in that position or the user has scrolled past a"
+        },
+        {
+          "type": "text",
+          "text": " "
+        },
+        {
+          "type": "text",
+          "text": "view with an id of matching type."
+        }
+      ],
+      "fragments": [
+        {
+          "kind": "keyword",
+          "text": "var"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "text": "viewID",
+          "kind": "identifier"
+        },
+        {
+          "text": ": (any ",
+          "kind": "text"
+        },
+        {
+          "preciseIdentifier": "s:SH",
+          "text": "Hashable",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": " & ",
+          "kind": "text"
+        },
+        {
+          "preciseIdentifier": "s:s8SendableP",
+          "text": "Sendable",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": ")?",
+          "kind": "text"
+        }
+      ]
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/View/scrollPosition(id:anchor:)": {
+      "role": "symbol",
+      "type": "topic",
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/View/scrollPosition(id:anchor:)",
+      "fragments": [
+        {
+          "kind": "keyword",
+          "text": "func"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "kind": "identifier",
+          "text": "scrollPosition"
+        },
+        {
+          "kind": "text",
+          "text": "("
+        },
+        {
+          "kind": "externalParam",
+          "text": "id"
+        },
+        {
+          "kind": "text",
+          "text": ": "
+        },
+        {
+          "kind": "typeIdentifier",
+          "text": "Binding",
+          "preciseIdentifier": "s:7SwiftUI7BindingV"
+        },
+        {
+          "kind": "text",
+          "text": "<("
+        },
+        {
+          "kind": "keyword",
+          "text": "some"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "kind": "typeIdentifier",
+          "text": "Hashable",
+          "preciseIdentifier": "s:SH"
+        },
+        {
+          "kind": "text",
+          "text": ")?>, "
+        },
+        {
+          "kind": "externalParam",
+          "text": "anchor"
+        },
+        {
+          "kind": "text",
+          "text": ": "
+        },
+        {
+          "kind": "typeIdentifier",
+          "text": "UnitPoint",
+          "preciseIdentifier": "s:7SwiftUI9UnitPointV"
+        },
+        {
+          "kind": "text",
+          "text": "?) -> "
+        },
+        {
+          "kind": "keyword",
+          "text": "some"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "kind": "typeIdentifier",
+          "text": "View",
+          "preciseIdentifier": "s:7SwiftUI4ViewP"
+        }
+      ],
+      "url": "/documentation/swiftui/view/scrollposition(id:anchor:)",
+      "title": "scrollPosition(id:anchor:)",
+      "kind": "symbol",
+      "abstract": [
+        {
+          "text": "Associates a binding to be updated when a scroll view within this",
+          "type": "text"
+        },
+        {
+          "text": " ",
+          "type": "text"
+        },
+        {
+          "text": "view scrolls.",
+          "type": "text"
+        }
+      ]
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/UnitPoint/bottom": {
+      "title": "bottom",
+      "url": "/documentation/swiftui/unitpoint/bottom",
+      "type": "topic",
+      "abstract": [
+        {
+          "type": "text",
+          "text": "A point that’s centered horizontally on the bottom edge of a view."
+        }
+      ],
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/UnitPoint/bottom",
+      "kind": "symbol",
+      "fragments": [
+        {
+          "kind": "keyword",
+          "text": "static"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "kind": "keyword",
+          "text": "let"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "kind": "identifier",
+          "text": "bottom"
+        },
+        {
+          "kind": "text",
+          "text": ": "
+        },
+        {
+          "preciseIdentifier": "s:7SwiftUI9UnitPointV",
+          "kind": "typeIdentifier",
+          "text": "UnitPoint"
+        }
+      ],
+      "role": "symbol"
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/View/defaultScrollAnchor(_:)": {
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/View/defaultScrollAnchor(_:)",
+      "url": "/documentation/swiftui/view/defaultscrollanchor(_:)",
+      "fragments": [
+        {
+          "kind": "keyword",
+          "text": "func"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "kind": "identifier",
+          "text": "defaultScrollAnchor"
+        },
+        {
+          "kind": "text",
+          "text": "("
+        },
+        {
+          "preciseIdentifier": "s:7SwiftUI9UnitPointV",
+          "kind": "typeIdentifier",
+          "text": "UnitPoint"
+        },
+        {
+          "kind": "text",
+          "text": "?) -> "
+        },
+        {
+          "kind": "keyword",
+          "text": "some"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "preciseIdentifier": "s:7SwiftUI4ViewP",
+          "kind": "typeIdentifier",
+          "text": "View"
+        }
+      ],
+      "role": "symbol",
+      "title": "defaultScrollAnchor(_:)",
+      "type": "topic",
+      "abstract": [
+        {
+          "text": "Associates an anchor to control which part of the scroll view’s",
+          "type": "text"
+        },
+        {
+          "text": " ",
+          "type": "text"
+        },
+        {
+          "text": "content should be rendered by default.",
+          "type": "text"
+        }
+      ],
+      "kind": "symbol"
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI": {
+      "abstract": [
+        {
+          "text": "Declare the user interface and behavior for your app on every platform.",
+          "type": "text"
+        }
+      ],
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI",
+      "role": "collection",
+      "kind": "symbol",
+      "images": [
+        {
+          "type": "card",
+          "identifier": "SwiftUI-PageImage-card.png"
+        }
+      ],
+      "url": "/documentation/swiftui",
+      "title": "SwiftUI",
+      "type": "topic"
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/scrollTo(id:anchor:)": {
+      "type": "topic",
+      "title": "scrollTo(id:anchor:)",
+      "url": "/documentation/swiftui/scrollposition/scrollto(id:anchor:)",
+      "kind": "symbol",
+      "fragments": [
+        {
+          "text": "func",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "scrollTo",
+          "kind": "identifier"
+        },
+        {
+          "text": "(",
+          "kind": "text"
+        },
+        {
+          "text": "id",
+          "kind": "externalParam"
+        },
+        {
+          "text": ": ",
+          "kind": "text"
+        },
+        {
+          "text": "some",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "Hashable",
+          "kind": "typeIdentifier",
+          "preciseIdentifier": "s:SH"
+        },
+        {
+          "text": " & ",
+          "kind": "text"
+        },
+        {
+          "text": "Sendable",
+          "kind": "typeIdentifier",
+          "preciseIdentifier": "s:s8SendableP"
+        },
+        {
+          "text": ", ",
+          "kind": "text"
+        },
+        {
+          "text": "anchor",
+          "kind": "externalParam"
+        },
+        {
+          "text": ": ",
+          "kind": "text"
+        },
+        {
+          "text": "UnitPoint",
+          "kind": "typeIdentifier",
+          "preciseIdentifier": "s:7SwiftUI9UnitPointV"
+        },
+        {
+          "text": "?)",
+          "kind": "text"
+        }
+      ],
+      "abstract": [
+        {
+          "type": "text",
+          "text": "Scrolls the position of the scroll view to a view with a identity value"
+        },
+        {
+          "type": "text",
+          "text": " "
+        },
+        {
+          "type": "text",
+          "text": "and anchor you provide."
+        }
+      ],
+      "role": "symbol",
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/scrollTo(id:anchor:)"
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/View/scrollPosition(_:anchor:)": {
+      "role": "symbol",
+      "kind": "symbol",
+      "fragments": [
+        {
+          "text": "func",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "scrollPosition",
+          "kind": "identifier"
+        },
+        {
+          "text": "(",
+          "kind": "text"
+        },
+        {
+          "text": "Binding",
+          "kind": "typeIdentifier",
+          "preciseIdentifier": "s:7SwiftUI7BindingV"
+        },
+        {
+          "text": "<",
+          "kind": "text"
+        },
+        {
+          "text": "ScrollPosition",
+          "kind": "typeIdentifier",
+          "preciseIdentifier": "s:7SwiftUI14ScrollPositionV"
+        },
+        {
+          "text": ">, ",
+          "kind": "text"
+        },
+        {
+          "text": "anchor",
+          "kind": "externalParam"
+        },
+        {
+          "text": ": ",
+          "kind": "text"
+        },
+        {
+          "text": "UnitPoint",
+          "kind": "typeIdentifier",
+          "preciseIdentifier": "s:7SwiftUI9UnitPointV"
+        },
+        {
+          "text": "?) -> ",
+          "kind": "text"
+        },
+        {
+          "text": "some",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "View",
+          "kind": "typeIdentifier",
+          "preciseIdentifier": "s:7SwiftUI4ViewP"
+        }
+      ],
+      "title": "scrollPosition(_:anchor:)",
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/View/scrollPosition(_:anchor:)",
+      "url": "/documentation/swiftui/view/scrollposition(_:anchor:)",
+      "type": "topic",
+      "abstract": [
+        {
+          "text": "Associates a binding to a scroll position with a scroll view within this",
+          "type": "text"
+        },
+        {
+          "text": " ",
+          "type": "text"
+        },
+        {
+          "text": "view.",
+          "type": "text"
+        }
+      ]
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/x": {
+      "type": "topic",
+      "role": "symbol",
+      "title": "x",
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/x",
+      "url": "/documentation/swiftui/scrollposition/x",
+      "kind": "symbol",
+      "abstract": [
+        {
+          "type": "text",
+          "text": "The positioned x value of the scroll view if configured to be in that"
+        },
+        {
+          "type": "text",
+          "text": " "
+        },
+        {
+          "type": "text",
+          "text": "position."
+        }
+      ],
+      "fragments": [
+        {
+          "kind": "keyword",
+          "text": "var"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "kind": "identifier",
+          "text": "x"
+        },
+        {
+          "kind": "text",
+          "text": ": "
+        },
+        {
+          "preciseIdentifier": "s:14CoreFoundation7CGFloatV",
+          "text": "CGFloat",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": "?",
+          "kind": "text"
+        }
+      ]
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/init(idType:x:)": {
+      "type": "topic",
+      "role": "symbol",
+      "title": "init(idType:x:)",
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/init(idType:x:)",
+      "url": "/documentation/swiftui/scrollposition/init(idtype:x:)",
+      "kind": "symbol",
+      "abstract": [
+        {
+          "type": "text",
+          "text": "Creates a new scroll position to be scrolled to the provided y value."
+        }
+      ],
+      "fragments": [
+        {
+          "kind": "identifier",
+          "text": "init"
+        },
+        {
+          "kind": "text",
+          "text": "("
+        },
+        {
+          "kind": "externalParam",
+          "text": "idType"
+        },
+        {
+          "kind": "text",
+          "text": ": ("
+        },
+        {
+          "kind": "keyword",
+          "text": "some"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "preciseIdentifier": "s:SH",
+          "text": "Hashable",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": " & ",
+          "kind": "text"
+        },
+        {
+          "preciseIdentifier": "s:s8SendableP",
+          "text": "Sendable",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": ").Type, ",
+          "kind": "text"
+        },
+        {
+          "text": "x",
+          "kind": "externalParam"
+        },
+        {
+          "text": ": ",
+          "kind": "text"
+        },
+        {
+          "preciseIdentifier": "s:14CoreFoundation7CGFloatV",
+          "text": "CGFloat",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": ")",
+          "kind": "text"
+        }
+      ]
+    },
+    "doc://com.externally.resolved.symbol/s:s16SendableMetatypeP": {
+      "role": "symbol",
+      "abstract": [
+        {
+          "text": "A type whose metatype can be shared across arbitrary concurrent contexts without introducing a risk of data races. When a generic type `T` conforms to `SendableMetatype`, its metatype `T.Type` conforms to `Sendable`.  All concrete types implicitly conform to the `SendableMetatype` protocol, so its primary purpose is in generic code to prohibit the use of isolated conformances along with the generic type.",
+          "type": "text"
+        }
+      ],
+      "fragments": [
+        {
+          "text": "protocol",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "SendableMetatype",
+          "kind": "identifier"
+        },
+        {
+          "text": " : ~Copyable, ~Escapable",
+          "kind": "text"
+        }
+      ],
+      "identifier": "doc://com.externally.resolved.symbol/s:s16SendableMetatypeP",
+      "url": "/documentation/Swift/SendableMetatype",
+      "title": "SendableMetatype",
+      "kind": "symbol",
+      "type": "topic"
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollAnchorRole": {
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollAnchorRole",
+      "url": "/documentation/swiftui/scrollanchorrole",
+      "fragments": [
+        {
+          "kind": "keyword",
+          "text": "struct"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "kind": "identifier",
+          "text": "ScrollAnchorRole"
+        }
+      ],
+      "role": "symbol",
+      "title": "ScrollAnchorRole",
+      "type": "topic",
+      "navigatorTitle": [
+        {
+          "kind": "identifier",
+          "text": "ScrollAnchorRole"
+        }
+      ],
+      "abstract": [
+        {
+          "text": "A type defining the role of a scroll anchor.",
+          "type": "text"
+        }
+      ],
+      "kind": "symbol"
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/init(idType:)": {
+      "type": "topic",
+      "role": "symbol",
+      "title": "init(idType:)",
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/init(idType:)",
+      "url": "/documentation/swiftui/scrollposition/init(idtype:)",
+      "kind": "symbol",
+      "abstract": [
+        {
+          "type": "text",
+          "text": "Creates a new automatic scroll position."
+        }
+      ],
+      "fragments": [
+        {
+          "kind": "identifier",
+          "text": "init"
+        },
+        {
+          "kind": "text",
+          "text": "("
+        },
+        {
+          "kind": "externalParam",
+          "text": "idType"
+        },
+        {
+          "kind": "text",
+          "text": ": ("
+        },
+        {
+          "kind": "keyword",
+          "text": "some"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "preciseIdentifier": "s:SH",
+          "text": "Hashable",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": " & ",
+          "kind": "text"
+        },
+        {
+          "preciseIdentifier": "s:s8SendableP",
+          "text": "Sendable",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": ").Type)",
+          "kind": "text"
+        }
+      ]
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/scrollTo(x:y:)": {
+      "type": "topic",
+      "role": "symbol",
+      "title": "scrollTo(x:y:)",
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/scrollTo(x:y:)",
+      "url": "/documentation/swiftui/scrollposition/scrollto(x:y:)",
+      "kind": "symbol",
+      "abstract": [
+        {
+          "type": "text",
+          "text": "Scrolls the position of the scroll view to the x and y value you"
+        },
+        {
+          "type": "text",
+          "text": " "
+        },
+        {
+          "type": "text",
+          "text": "provide."
+        }
+      ],
+      "fragments": [
+        {
+          "kind": "keyword",
+          "text": "func"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "kind": "identifier",
+          "text": "scrollTo"
+        },
+        {
+          "kind": "text",
+          "text": "("
+        },
+        {
+          "text": "x",
+          "kind": "externalParam"
+        },
+        {
+          "text": ": ",
+          "kind": "text"
+        },
+        {
+          "preciseIdentifier": "s:14CoreFoundation7CGFloatV",
+          "text": "CGFloat",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": ", ",
+          "kind": "text"
+        },
+        {
+          "text": "y",
+          "kind": "externalParam"
+        },
+        {
+          "text": ": ",
+          "kind": "text"
+        },
+        {
+          "preciseIdentifier": "s:14CoreFoundation7CGFloatV",
+          "text": "CGFloat",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": ")",
+          "kind": "text"
+        }
+      ]
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/point": {
+      "abstract": [
+        {
+          "type": "text",
+          "text": "The positioned point of the scroll view if configured to be in that"
+        },
+        {
+          "type": "text",
+          "text": " "
+        },
+        {
+          "type": "text",
+          "text": "position."
+        }
+      ],
+      "kind": "symbol",
+      "title": "point",
+      "url": "/documentation/swiftui/scrollposition/point",
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/point",
+      "type": "topic",
+      "role": "symbol",
+      "fragments": [
+        {
+          "text": "var",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "point",
+          "kind": "identifier"
+        },
+        {
+          "text": ": ",
+          "kind": "text"
+        },
+        {
+          "text": "CGPoint",
+          "kind": "typeIdentifier",
+          "preciseIdentifier": "c:@S@CGPoint"
+        },
+        {
+          "text": "?",
+          "kind": "text"
+        }
+      ]
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/View/defaultScrollAnchor(_:for:)": {
+      "role": "symbol",
+      "kind": "symbol",
+      "url": "/documentation/swiftui/view/defaultscrollanchor(_:for:)",
+      "title": "defaultScrollAnchor(_:for:)",
+      "fragments": [
+        {
+          "text": "func",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "defaultScrollAnchor",
+          "kind": "identifier"
+        },
+        {
+          "text": "(",
+          "kind": "text"
+        },
+        {
+          "preciseIdentifier": "s:7SwiftUI9UnitPointV",
+          "text": "UnitPoint",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": "?, ",
+          "kind": "text"
+        },
+        {
+          "text": "for",
+          "kind": "externalParam"
+        },
+        {
+          "text": ": ",
+          "kind": "text"
+        },
+        {
+          "preciseIdentifier": "s:7SwiftUI16ScrollAnchorRoleV",
+          "text": "ScrollAnchorRole",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": ") -> ",
+          "kind": "text"
+        },
+        {
+          "text": "some",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "preciseIdentifier": "s:7SwiftUI4ViewP",
+          "text": "View",
+          "kind": "typeIdentifier"
+        }
+      ],
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/View/defaultScrollAnchor(_:for:)",
+      "type": "topic",
+      "abstract": [
+        {
+          "type": "text",
+          "text": "Associates an anchor to control the position of a scroll view in a"
+        },
+        {
+          "type": "text",
+          "text": " "
+        },
+        {
+          "type": "text",
+          "text": "particular circumstance."
+        }
+      ]
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/edge": {
+      "title": "edge",
+      "type": "topic",
+      "url": "/documentation/swiftui/scrollposition/edge",
+      "fragments": [
+        {
+          "text": "var",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "edge",
+          "kind": "identifier"
+        },
+        {
+          "text": ": ",
+          "kind": "text"
+        },
+        {
+          "text": "Edge",
+          "preciseIdentifier": "s:7SwiftUI4EdgeO",
+          "kind": "typeIdentifier"
+        },
+        {
+          "kind": "text",
+          "text": "?"
+        }
+      ],
+      "kind": "symbol",
+      "role": "symbol",
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/edge",
+      "abstract": [
+        {
+          "type": "text",
+          "text": "The positioned edge of the scroll view if configured to be in that"
+        },
+        {
+          "type": "text",
+          "text": " "
+        },
+        {
+          "type": "text",
+          "text": "position."
+        }
+      ]
+    },
+    "doc://com.externally.resolved.symbol/s:SQ": {
+      "role": "symbol",
+      "abstract": [
+        {
+          "text": "A type that can be compared for value equality.",
+          "type": "text"
+        }
+      ],
+      "fragments": [
+        {
+          "text": "protocol",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "Equatable",
+          "kind": "identifier"
+        }
+      ],
+      "identifier": "doc://com.externally.resolved.symbol/s:SQ",
+      "url": "/documentation/Swift/Equatable",
+      "title": "Equatable",
+      "kind": "symbol",
+      "type": "topic"
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/init(idType:edge:)": {
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/init(idType:edge:)",
+      "kind": "symbol",
+      "role": "symbol",
+      "type": "topic",
+      "abstract": [
+        {
+          "type": "text",
+          "text": "Creates a new scroll position to be scrolled to the provided edge."
+        }
+      ],
+      "fragments": [
+        {
+          "kind": "identifier",
+          "text": "init"
+        },
+        {
+          "kind": "text",
+          "text": "("
+        },
+        {
+          "kind": "externalParam",
+          "text": "idType"
+        },
+        {
+          "kind": "text",
+          "text": ": ("
+        },
+        {
+          "kind": "keyword",
+          "text": "some"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "preciseIdentifier": "s:SH",
+          "text": "Hashable",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": " & ",
+          "kind": "text"
+        },
+        {
+          "preciseIdentifier": "s:s8SendableP",
+          "text": "Sendable",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": ").Type, ",
+          "kind": "text"
+        },
+        {
+          "text": "edge",
+          "kind": "externalParam"
+        },
+        {
+          "text": ": ",
+          "kind": "text"
+        },
+        {
+          "preciseIdentifier": "s:7SwiftUI4EdgeO",
+          "text": "Edge",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": ")",
+          "kind": "text"
+        }
+      ],
+      "title": "init(idType:edge:)",
+      "url": "/documentation/swiftui/scrollposition/init(idtype:edge:)"
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/init(idType:y:)": {
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollPosition/init(idType:y:)",
+      "fragments": [
+        {
+          "kind": "identifier",
+          "text": "init"
+        },
+        {
+          "kind": "text",
+          "text": "("
+        },
+        {
+          "kind": "externalParam",
+          "text": "idType"
+        },
+        {
+          "kind": "text",
+          "text": ": ("
+        },
+        {
+          "kind": "keyword",
+          "text": "some"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "preciseIdentifier": "s:SH",
+          "text": "Hashable",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": " & ",
+          "kind": "text"
+        },
+        {
+          "preciseIdentifier": "s:s8SendableP",
+          "text": "Sendable",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": ").Type, ",
+          "kind": "text"
+        },
+        {
+          "text": "y",
+          "kind": "externalParam"
+        },
+        {
+          "text": ": ",
+          "kind": "text"
+        },
+        {
+          "preciseIdentifier": "s:14CoreFoundation7CGFloatV",
+          "text": "CGFloat",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": ")",
+          "kind": "text"
+        }
+      ],
+      "abstract": [
+        {
+          "type": "text",
+          "text": "Creates a new scroll position to be scrolled to the provided y value."
+        }
+      ],
+      "title": "init(idType:y:)",
+      "type": "topic",
+      "url": "/documentation/swiftui/scrollposition/init(idtype:y:)",
+      "kind": "symbol",
+      "role": "symbol"
+    }
+  },
+  "legalNotices": {
+    "copyright": "Copyright &copy; 2025 Apple Inc. All rights reserved.",
+    "termsOfUse": "https://www.apple.com/legal/internet-services/terms/site.html",
+    "privacyPolicy": "https://www.apple.com/privacy/privacy-policy"
+  }
+}

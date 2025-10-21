@@ -1,0 +1,1097 @@
+{
+  "kind": "symbol",
+  "abstract": [
+    {
+      "type": "text",
+      "text": "Applies the given transition, animating between the phases"
+    },
+    {
+      "type": "text",
+      "text": " "
+    },
+    {
+      "type": "text",
+      "text": "of the transition as this view appears and disappears within the"
+    },
+    {
+      "type": "text",
+      "text": " "
+    },
+    {
+      "type": "text",
+      "text": "visible region of the containing scroll view."
+    }
+  ],
+  "hierarchy": {
+    "paths": [
+      [
+        "doc://com.apple.documentation/documentation/technologies",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/View"
+      ]
+    ]
+  },
+  "schemaVersion": {
+    "major": 0,
+    "minor": 3,
+    "patch": 0
+  },
+  "seeAlsoSections": [
+    {
+      "identifiers": [
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/View/scrollTransition(topLeading:bottomTrailing:axis:transition:)",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollTransitionPhase",
+        "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollTransitionConfiguration"
+      ],
+      "anchor": "Animating-scroll-transitions",
+      "title": "Animating scroll transitions",
+      "generated": true
+    }
+  ],
+  "primaryContentSections": [
+    {
+      "kind": "declarations",
+      "declarations": [
+        {
+          "platforms": [
+            "iOS",
+            "iPadOS",
+            "Mac Catalyst",
+            "macOS",
+            "tvOS",
+            "visionOS",
+            "watchOS"
+          ],
+          "tokens": [
+            {
+              "text": "nonisolated",
+              "kind": "attribute"
+            },
+            {
+              "text": " ",
+              "kind": "text"
+            },
+            {
+              "text": "func",
+              "kind": "keyword"
+            },
+            {
+              "text": " ",
+              "kind": "text"
+            },
+            {
+              "text": "scrollTransition",
+              "kind": "identifier"
+            },
+            {
+              "text": "(",
+              "kind": "text"
+            },
+            {
+              "text": "_",
+              "kind": "externalParam"
+            },
+            {
+              "text": " ",
+              "kind": "text"
+            },
+            {
+              "text": "configuration",
+              "kind": "internalParam"
+            },
+            {
+              "text": ": ",
+              "kind": "text"
+            },
+            {
+              "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollTransitionConfiguration",
+              "preciseIdentifier": "s:7SwiftUI29ScrollTransitionConfigurationV",
+              "text": "ScrollTransitionConfiguration",
+              "kind": "typeIdentifier"
+            },
+            {
+              "text": " = .interactive, ",
+              "kind": "text"
+            },
+            {
+              "text": "axis",
+              "kind": "externalParam"
+            },
+            {
+              "text": ": ",
+              "kind": "text"
+            },
+            {
+              "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/Axis",
+              "preciseIdentifier": "s:7SwiftUI4AxisO",
+              "text": "Axis",
+              "kind": "typeIdentifier"
+            },
+            {
+              "text": "? = nil, ",
+              "kind": "text"
+            },
+            {
+              "text": "transition",
+              "kind": "externalParam"
+            },
+            {
+              "text": ": ",
+              "kind": "text"
+            },
+            {
+              "text": "@escaping ",
+              "kind": "attribute"
+            },
+            {
+              "text": "(",
+              "kind": "text"
+            },
+            {
+              "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/EmptyVisualEffect",
+              "preciseIdentifier": "s:7SwiftUI17EmptyVisualEffectV",
+              "text": "EmptyVisualEffect",
+              "kind": "typeIdentifier"
+            },
+            {
+              "text": ", ",
+              "kind": "text"
+            },
+            {
+              "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollTransitionPhase",
+              "preciseIdentifier": "s:7SwiftUI21ScrollTransitionPhaseO",
+              "text": "ScrollTransitionPhase",
+              "kind": "typeIdentifier"
+            },
+            {
+              "text": ") -> ",
+              "kind": "text"
+            },
+            {
+              "text": "some",
+              "kind": "keyword"
+            },
+            {
+              "text": " ",
+              "kind": "text"
+            },
+            {
+              "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/VisualEffect",
+              "preciseIdentifier": "s:7SwiftUI12VisualEffectP",
+              "text": "VisualEffect",
+              "kind": "typeIdentifier"
+            },
+            {
+              "text": ") -> ",
+              "kind": "text"
+            },
+            {
+              "text": "some",
+              "kind": "keyword"
+            },
+            {
+              "text": " ",
+              "kind": "text"
+            },
+            {
+              "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/View",
+              "preciseIdentifier": "s:7SwiftUI4ViewP",
+              "text": "View",
+              "kind": "typeIdentifier"
+            },
+            {
+              "text": "\n",
+              "kind": "text"
+            }
+          ],
+          "languages": [
+            "swift"
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "parameters",
+      "parameters": [
+        {
+          "content": [
+            {
+              "inlineContent": [
+                {
+                  "type": "text",
+                  "text": "The configuration controlling how the"
+                },
+                {
+                  "type": "text",
+                  "text": " "
+                },
+                {
+                  "type": "text",
+                  "text": "transition will be applied. The configuration will be applied both"
+                },
+                {
+                  "type": "text",
+                  "text": " "
+                },
+                {
+                  "type": "text",
+                  "text": "while the view is coming into view and while it is disappearing (the"
+                },
+                {
+                  "type": "text",
+                  "text": " "
+                },
+                {
+                  "type": "text",
+                  "text": "transition is symmetrical)."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "name": "configuration"
+        },
+        {
+          "content": [
+            {
+              "inlineContent": [
+                {
+                  "text": "The axis of the containing scroll view over which the",
+                  "type": "text"
+                },
+                {
+                  "text": " ",
+                  "type": "text"
+                },
+                {
+                  "text": "transition will be applied. The default value of ",
+                  "type": "text"
+                },
+                {
+                  "code": "nil",
+                  "type": "codeVoice"
+                },
+                {
+                  "text": " uses the",
+                  "type": "text"
+                },
+                {
+                  "text": " ",
+                  "type": "text"
+                },
+                {
+                  "text": "axis of the innermost containing scroll view, or ",
+                  "type": "text"
+                },
+                {
+                  "code": ".vertical",
+                  "type": "codeVoice"
+                },
+                {
+                  "text": " if",
+                  "type": "text"
+                },
+                {
+                  "text": " ",
+                  "type": "text"
+                },
+                {
+                  "text": "the innermost scroll view is scrollable along both axes.",
+                  "type": "text"
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "name": "axis"
+        },
+        {
+          "content": [
+            {
+              "type": "paragraph",
+              "inlineContent": [
+                {
+                  "type": "text",
+                  "text": "A closure that applies visual effects as a function of"
+                },
+                {
+                  "type": "text",
+                  "text": " "
+                },
+                {
+                  "type": "text",
+                  "text": "the provided phase."
+                }
+              ]
+            }
+          ],
+          "name": "transition"
+        }
+      ]
+    }
+  ],
+  "identifier": {
+    "interfaceLanguage": "swift",
+    "url": "doc://com.apple.SwiftUI/documentation/SwiftUI/View/scrollTransition(_:axis:transition:)"
+  },
+  "sections": [],
+  "metadata": {
+    "platforms": [
+      {
+        "deprecated": false,
+        "name": "iOS",
+        "introducedAt": "17.0",
+        "unavailable": false,
+        "beta": false
+      },
+      {
+        "deprecated": false,
+        "name": "iPadOS",
+        "introducedAt": "17.0",
+        "unavailable": false,
+        "beta": false
+      },
+      {
+        "deprecated": false,
+        "name": "Mac Catalyst",
+        "introducedAt": "17.0",
+        "unavailable": false,
+        "beta": false
+      },
+      {
+        "deprecated": false,
+        "name": "macOS",
+        "introducedAt": "14.0",
+        "unavailable": false,
+        "beta": false
+      },
+      {
+        "deprecated": false,
+        "name": "tvOS",
+        "introducedAt": "17.0",
+        "unavailable": false,
+        "beta": false
+      },
+      {
+        "deprecated": false,
+        "name": "visionOS",
+        "introducedAt": "1.0",
+        "unavailable": false,
+        "beta": false
+      },
+      {
+        "deprecated": false,
+        "name": "watchOS",
+        "introducedAt": "10.0",
+        "unavailable": false,
+        "beta": false
+      }
+    ],
+    "role": "symbol",
+    "extendedModule": "SwiftUI",
+    "externalID": "s:7SwiftUI4ViewPAAE16scrollTransition_4axis10transitionQrAA06ScrollE13ConfigurationV_AA4AxisOSgqd__AA17EmptyVisualEffectV_AA0hE5PhaseOtYbctAA0lM0Rd__lF",
+    "modules": [
+      {
+        "name": "SwiftUI"
+      }
+    ],
+    "roleHeading": "Instance Method",
+    "title": "scrollTransition(_:axis:transition:)",
+    "symbolKind": "method",
+    "fragments": [
+      {
+        "text": "func",
+        "kind": "keyword"
+      },
+      {
+        "text": " ",
+        "kind": "text"
+      },
+      {
+        "text": "scrollTransition",
+        "kind": "identifier"
+      },
+      {
+        "text": "(",
+        "kind": "text"
+      },
+      {
+        "text": "ScrollTransitionConfiguration",
+        "preciseIdentifier": "s:7SwiftUI29ScrollTransitionConfigurationV",
+        "kind": "typeIdentifier"
+      },
+      {
+        "text": ", ",
+        "kind": "text"
+      },
+      {
+        "text": "axis",
+        "kind": "externalParam"
+      },
+      {
+        "text": ": ",
+        "kind": "text"
+      },
+      {
+        "text": "Axis",
+        "preciseIdentifier": "s:7SwiftUI4AxisO",
+        "kind": "typeIdentifier"
+      },
+      {
+        "text": "?, ",
+        "kind": "text"
+      },
+      {
+        "text": "transition",
+        "kind": "externalParam"
+      },
+      {
+        "text": ": (",
+        "kind": "text"
+      },
+      {
+        "text": "EmptyVisualEffect",
+        "preciseIdentifier": "s:7SwiftUI17EmptyVisualEffectV",
+        "kind": "typeIdentifier"
+      },
+      {
+        "text": ", ",
+        "kind": "text"
+      },
+      {
+        "text": "ScrollTransitionPhase",
+        "preciseIdentifier": "s:7SwiftUI21ScrollTransitionPhaseO",
+        "kind": "typeIdentifier"
+      },
+      {
+        "text": ") -> ",
+        "kind": "text"
+      },
+      {
+        "text": "some",
+        "kind": "keyword"
+      },
+      {
+        "text": " ",
+        "kind": "text"
+      },
+      {
+        "text": "VisualEffect",
+        "preciseIdentifier": "s:7SwiftUI12VisualEffectP",
+        "kind": "typeIdentifier"
+      },
+      {
+        "text": ") -> ",
+        "kind": "text"
+      },
+      {
+        "text": "some",
+        "kind": "keyword"
+      },
+      {
+        "text": " ",
+        "kind": "text"
+      },
+      {
+        "text": "View",
+        "preciseIdentifier": "s:7SwiftUI4ViewP",
+        "kind": "typeIdentifier"
+      }
+    ]
+  },
+  "variants": [
+    {
+      "paths": [
+        "/documentation/swiftui/view/scrolltransition(_:axis:transition:)"
+      ],
+      "traits": [
+        {
+          "interfaceLanguage": "swift"
+        }
+      ]
+    }
+  ],
+  "references": {
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollTransitionConfiguration": {
+      "title": "ScrollTransitionConfiguration",
+      "fragments": [
+        {
+          "kind": "keyword",
+          "text": "struct"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "kind": "identifier",
+          "text": "ScrollTransitionConfiguration"
+        }
+      ],
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollTransitionConfiguration",
+      "kind": "symbol",
+      "type": "topic",
+      "navigatorTitle": [
+        {
+          "kind": "identifier",
+          "text": "ScrollTransitionConfiguration"
+        }
+      ],
+      "url": "/documentation/swiftui/scrolltransitionconfiguration",
+      "abstract": [
+        {
+          "type": "text",
+          "text": "The configuration of a scroll transition that controls how a transition"
+        },
+        {
+          "type": "text",
+          "text": " "
+        },
+        {
+          "type": "text",
+          "text": "is applied as a view is scrolled through the visible region of a containing"
+        },
+        {
+          "type": "text",
+          "text": " "
+        },
+        {
+          "type": "text",
+          "text": "scroll view or other container."
+        }
+      ],
+      "role": "symbol"
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI": {
+      "abstract": [
+        {
+          "text": "Declare the user interface and behavior for your app on every platform.",
+          "type": "text"
+        }
+      ],
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI",
+      "role": "collection",
+      "kind": "symbol",
+      "images": [
+        {
+          "type": "card",
+          "identifier": "SwiftUI-PageImage-card.png"
+        }
+      ],
+      "url": "/documentation/swiftui",
+      "title": "SwiftUI",
+      "type": "topic"
+    },
+    "doc://com.apple.documentation/documentation/technologies": {
+      "abstract": [
+        {
+          "text": "",
+          "type": "text"
+        }
+      ],
+      "identifier": "doc://com.apple.documentation/documentation/technologies",
+      "role": "overview",
+      "kind": "technologies",
+      "url": "/documentation/technologies",
+      "title": "Technologies",
+      "type": "topic"
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/View": {
+      "abstract": [
+        {
+          "text": "A type that represents part of your app’s user interface and provides",
+          "type": "text"
+        },
+        {
+          "text": " ",
+          "type": "text"
+        },
+        {
+          "text": "modifiers that you use to configure views.",
+          "type": "text"
+        }
+      ],
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/View",
+      "fragments": [
+        {
+          "text": "protocol",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "View",
+          "kind": "identifier"
+        }
+      ],
+      "role": "symbol",
+      "kind": "symbol",
+      "navigatorTitle": [
+        {
+          "text": "View",
+          "kind": "identifier"
+        }
+      ],
+      "url": "/documentation/swiftui/view",
+      "title": "View",
+      "type": "topic"
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/View/scrollTransition(_:axis:transition:)": {
+      "fragments": [
+        {
+          "text": "func",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "scrollTransition",
+          "kind": "identifier"
+        },
+        {
+          "text": "(",
+          "kind": "text"
+        },
+        {
+          "text": "ScrollTransitionConfiguration",
+          "preciseIdentifier": "s:7SwiftUI29ScrollTransitionConfigurationV",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": ", ",
+          "kind": "text"
+        },
+        {
+          "text": "axis",
+          "kind": "externalParam"
+        },
+        {
+          "text": ": ",
+          "kind": "text"
+        },
+        {
+          "text": "Axis",
+          "preciseIdentifier": "s:7SwiftUI4AxisO",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": "?, ",
+          "kind": "text"
+        },
+        {
+          "text": "transition",
+          "kind": "externalParam"
+        },
+        {
+          "text": ": (",
+          "kind": "text"
+        },
+        {
+          "text": "EmptyVisualEffect",
+          "preciseIdentifier": "s:7SwiftUI17EmptyVisualEffectV",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": ", ",
+          "kind": "text"
+        },
+        {
+          "text": "ScrollTransitionPhase",
+          "preciseIdentifier": "s:7SwiftUI21ScrollTransitionPhaseO",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": ") -> ",
+          "kind": "text"
+        },
+        {
+          "text": "some",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "VisualEffect",
+          "preciseIdentifier": "s:7SwiftUI12VisualEffectP",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": ") -> ",
+          "kind": "text"
+        },
+        {
+          "text": "some",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "View",
+          "preciseIdentifier": "s:7SwiftUI4ViewP",
+          "kind": "typeIdentifier"
+        }
+      ],
+      "url": "/documentation/swiftui/view/scrolltransition(_:axis:transition:)",
+      "type": "topic",
+      "role": "symbol",
+      "kind": "symbol",
+      "abstract": [
+        {
+          "type": "text",
+          "text": "Applies the given transition, animating between the phases"
+        },
+        {
+          "type": "text",
+          "text": " "
+        },
+        {
+          "type": "text",
+          "text": "of the transition as this view appears and disappears within the"
+        },
+        {
+          "type": "text",
+          "text": " "
+        },
+        {
+          "type": "text",
+          "text": "visible region of the containing scroll view."
+        }
+      ],
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/View/scrollTransition(_:axis:transition:)",
+      "title": "scrollTransition(_:axis:transition:)"
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/Axis": {
+      "url": "/documentation/swiftui/axis",
+      "abstract": [
+        {
+          "type": "text",
+          "text": "The horizontal or vertical dimension in a 2D coordinate system."
+        }
+      ],
+      "title": "Axis",
+      "type": "topic",
+      "kind": "symbol",
+      "fragments": [
+        {
+          "kind": "keyword",
+          "text": "enum"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "text": "Axis",
+          "kind": "identifier"
+        }
+      ],
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/Axis",
+      "role": "symbol",
+      "navigatorTitle": [
+        {
+          "text": "Axis",
+          "kind": "identifier"
+        }
+      ]
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/View/scrollTransition(topLeading:bottomTrailing:axis:transition:)": {
+      "fragments": [
+        {
+          "text": "func",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "scrollTransition",
+          "kind": "identifier"
+        },
+        {
+          "text": "(",
+          "kind": "text"
+        },
+        {
+          "text": "topLeading",
+          "kind": "externalParam"
+        },
+        {
+          "text": ": ",
+          "kind": "text"
+        },
+        {
+          "text": "ScrollTransitionConfiguration",
+          "preciseIdentifier": "s:7SwiftUI29ScrollTransitionConfigurationV",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": ", ",
+          "kind": "text"
+        },
+        {
+          "text": "bottomTrailing",
+          "kind": "externalParam"
+        },
+        {
+          "text": ": ",
+          "kind": "text"
+        },
+        {
+          "text": "ScrollTransitionConfiguration",
+          "preciseIdentifier": "s:7SwiftUI29ScrollTransitionConfigurationV",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": ", ",
+          "kind": "text"
+        },
+        {
+          "text": "axis",
+          "kind": "externalParam"
+        },
+        {
+          "text": ": ",
+          "kind": "text"
+        },
+        {
+          "text": "Axis",
+          "preciseIdentifier": "s:7SwiftUI4AxisO",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": "?, ",
+          "kind": "text"
+        },
+        {
+          "text": "transition",
+          "kind": "externalParam"
+        },
+        {
+          "text": ": (",
+          "kind": "text"
+        },
+        {
+          "text": "EmptyVisualEffect",
+          "preciseIdentifier": "s:7SwiftUI17EmptyVisualEffectV",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": ", ",
+          "kind": "text"
+        },
+        {
+          "text": "ScrollTransitionPhase",
+          "preciseIdentifier": "s:7SwiftUI21ScrollTransitionPhaseO",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": ") -> ",
+          "kind": "text"
+        },
+        {
+          "text": "some",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "VisualEffect",
+          "preciseIdentifier": "s:7SwiftUI12VisualEffectP",
+          "kind": "typeIdentifier"
+        },
+        {
+          "text": ") -> ",
+          "kind": "text"
+        },
+        {
+          "text": "some",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "View",
+          "preciseIdentifier": "s:7SwiftUI4ViewP",
+          "kind": "typeIdentifier"
+        }
+      ],
+      "url": "/documentation/swiftui/view/scrolltransition(topleading:bottomtrailing:axis:transition:)",
+      "type": "topic",
+      "role": "symbol",
+      "kind": "symbol",
+      "abstract": [
+        {
+          "type": "text",
+          "text": "Applies the given transition, animating between the phases"
+        },
+        {
+          "type": "text",
+          "text": " "
+        },
+        {
+          "type": "text",
+          "text": "of the transition as this view appears and disappears within the"
+        },
+        {
+          "type": "text",
+          "text": " "
+        },
+        {
+          "type": "text",
+          "text": "visible region of the containing scroll view."
+        }
+      ],
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/View/scrollTransition(topLeading:bottomTrailing:axis:transition:)",
+      "title": "scrollTransition(topLeading:bottomTrailing:axis:transition:)"
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/EmptyVisualEffect": {
+      "kind": "symbol",
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/EmptyVisualEffect",
+      "fragments": [
+        {
+          "text": "struct",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "EmptyVisualEffect",
+          "kind": "identifier"
+        }
+      ],
+      "abstract": [
+        {
+          "type": "text",
+          "text": "The base visual effect that you apply additional effect to."
+        }
+      ],
+      "role": "symbol",
+      "navigatorTitle": [
+        {
+          "text": "EmptyVisualEffect",
+          "kind": "identifier"
+        }
+      ],
+      "type": "topic",
+      "title": "EmptyVisualEffect",
+      "url": "/documentation/swiftui/emptyvisualeffect"
+    },
+    "SwiftUI-PageImage-card.png": {
+      "alt": "A stylized Swift logo using dashes on a white or blue background.",
+      "type": "image",
+      "identifier": "SwiftUI-PageImage-card.png",
+      "variants": [
+        {
+          "traits": [
+            "2x",
+            "light"
+          ],
+          "url": "https://docs-assets.developer.apple.com/published/a0ca0e84aabe29cd5bf4d29b4ab5046e/SwiftUI-PageImage-card%402x.png"
+        },
+        {
+          "traits": [
+            "2x",
+            "dark"
+          ],
+          "url": "https://docs-assets.developer.apple.com/published/a6ddc19a84fa8156d8ec8353a9622d0e/SwiftUI-PageImage-card~dark%402x.png"
+        }
+      ]
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/VisualEffect": {
+      "role": "symbol",
+      "kind": "symbol",
+      "fragments": [
+        {
+          "kind": "keyword",
+          "text": "protocol"
+        },
+        {
+          "kind": "text",
+          "text": " "
+        },
+        {
+          "kind": "identifier",
+          "text": "VisualEffect"
+        }
+      ],
+      "title": "VisualEffect",
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/VisualEffect",
+      "navigatorTitle": [
+        {
+          "kind": "identifier",
+          "text": "VisualEffect"
+        }
+      ],
+      "url": "/documentation/swiftui/visualeffect",
+      "type": "topic",
+      "abstract": [
+        {
+          "type": "text",
+          "text": "Visual Effects change the visual appearance of a view without changing its"
+        },
+        {
+          "text": " ",
+          "type": "text"
+        },
+        {
+          "type": "text",
+          "text": "ancestors or descendents."
+        }
+      ]
+    },
+    "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollTransitionPhase": {
+      "abstract": [
+        {
+          "text": "The phases that a view transitions between when it scrolls among other views.",
+          "type": "text"
+        }
+      ],
+      "fragments": [
+        {
+          "text": "enum",
+          "kind": "keyword"
+        },
+        {
+          "text": " ",
+          "kind": "text"
+        },
+        {
+          "text": "ScrollTransitionPhase",
+          "kind": "identifier"
+        }
+      ],
+      "role": "symbol",
+      "title": "ScrollTransitionPhase",
+      "kind": "symbol",
+      "type": "topic",
+      "url": "/documentation/swiftui/scrolltransitionphase",
+      "identifier": "doc://com.apple.SwiftUI/documentation/SwiftUI/ScrollTransitionPhase",
+      "navigatorTitle": [
+        {
+          "text": "ScrollTransitionPhase",
+          "kind": "identifier"
+        }
+      ]
+    }
+  },
+  "legalNotices": {
+    "copyright": "Copyright &copy; 2025 Apple Inc. All rights reserved.",
+    "termsOfUse": "https://www.apple.com/legal/internet-services/terms/site.html",
+    "privacyPolicy": "https://www.apple.com/privacy/privacy-policy"
+  }
+}
