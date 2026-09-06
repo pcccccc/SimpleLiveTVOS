@@ -14,12 +14,23 @@ public final class HTTPPollingDanmakuConnection {
 
     private let danmakuPlan: LiveParseDanmakuPlan?
     private let pluginId: String?
-    private var pluginDriver: PluginJSDanmakuDriver?
-    private var pollingTimer: Timer?
+    private var pluginDriver: (any DanmakuRuntimeDriving)?
+    var makeDriver: DanmakuDriverFactory = { PluginJSDanmakuDriver(pluginId: $0, roomId: $1, userId: $2, plan: $3) }
+    var schedule: DanmakuSchedule = scheduleDanmakuWork
+    private var roomId: String?
+    private var userId: String?
+    private let pollingTimer = DanmakuConnectionTimer()
+    let workQueue = DanmakuConnectionWorkQueue()
+    private var cancelReconnect: (@MainActor () -> Void)?
+    private var reconnectPolicy = DanmakuReconnectPolicy()
+    private var shouldReconnect = false
+    private var hasNotifiedDisconnect = false
+    private var request: DataRequest?
     private var pollingInterval: TimeInterval = 3.0
     private var pollingURL: String = ""
     private var pollingMethod: String = "POST"
     private var isConnected = false
+    private var hasReceivedResponse = false
     private var isRequestInFlight = false
     private var driverTimerReason: PluginJSDanmakuDriver.TickReason = .polling
 
@@ -46,15 +57,9 @@ public final class HTTPPollingDanmakuConnection {
         self.liveType = liveType
         self.danmakuPlan = danmakuPlan
         self.pluginId = pluginId
+        self.roomId = roomId
+        self.userId = userId
 
-        if danmakuPlan.usesPluginRuntimeDriver {
-            self.pluginDriver = PluginJSDanmakuDriver(
-                pluginId: pluginId,
-                roomId: roomId,
-                userId: userId,
-                plan: danmakuPlan
-            )
-        }
 
         parseConfig()
     }
@@ -62,56 +67,66 @@ public final class HTTPPollingDanmakuConnection {
     /// `isolated deinit`:在主 actor 上执行析构,理由同 `WebSocketConnection`——
     /// nonisolated deinit 无法访问非 Sendable 的 `pollingTimer`,也就复用不了 `disconnect()`。
     isolated deinit {
-        Task { [pluginDriver] in
-            await pluginDriver?.destroy(reason: .deinitialized)
-        }
         disconnect()
     }
 
     public func connect() {
-        guard let pluginDriver else {
-            delegate?.webSocketDidDisconnect(
-                error: LiveParseError.danmuArgsParseError("弹幕驱动不受支持", "插件未声明 runtime.driver=plugin_js_v1：\(liveType.rawValue)")
-            )
-            return
-        }
-
-        guard !pollingURL.isEmpty else {
-            delegate?.webSocketDidDisconnect(
-                error: LiveParseError.danmuArgsParseError("弹幕轮询地址缺失", "插件未返回可用的 transport.url / _polling_url")
-            )
-            return
-        }
-
-        isConnected = true
-        isRequestInFlight = false
-        delegate?.webSocketDidConnect()
-
-        Task {
-            do {
-                let result = try await pluginDriver.createSession()
-                applyDriverResult(result)
-
-                let shouldSendOnConnect = danmakuPlan?.transport?.polling?.sendOnConnect ?? true
-                if shouldSendOnConnect {
-                    if let poll = result.poll {
-                        executePoll(poll)
-                    } else {
-                        runDriverTick()
-                    }
-                }
-            } catch {
-                handleDriverFailure(error)
-            }
-        }
+        guard !shouldReconnect else { return }
+        shouldReconnect = true
+        reconnectPolicy.connected()
+        hasNotifiedDisconnect = false
+        hasReceivedResponse = false
+        startSession()
     }
 
     public func disconnect() {
-        stopPollingTimer()
+        shouldReconnect = false
+        cancelReconnect?()
+        cancelReconnect = nil
+        tearDownAttempt()
+    }
+
+    private func tearDownAttempt() {
+        workQueue.invalidate()
+        pollingTimer.stop()
         isConnected = false
         isRequestInFlight = false
-        Task { [pluginDriver] in
-            await pluginDriver?.destroy(reason: .disconnect)
+        request?.cancel()
+        request = nil
+        let oldDriver = pluginDriver
+        pluginDriver = nil
+        Task { await oldDriver?.destroy(reason: .disconnect) }
+    }
+
+    private func startSession() {
+        guard shouldReconnect else { return }
+        tearDownAttempt()
+        guard let pluginId, let roomId, let danmakuPlan, danmakuPlan.usesPluginRuntimeDriver,
+              !pollingURL.isEmpty else {
+            disconnect()
+            delegate?.webSocketDidDisconnect(
+                error: LiveParseError.danmuArgsParseError("弹幕轮询配置无效", "缺少驱动或连接地址")
+            )
+            return
+        }
+        let driver = makeDriver(pluginId, roomId, userId, danmakuPlan)
+        pluginDriver = driver
+        workQueue.enqueue(operation: { try await driver.createSession() }) { [weak self] outcome in
+            guard let self, self.shouldReconnect else { return }
+            switch outcome {
+            case .success(let result):
+                self.isConnected = true
+                self.hasNotifiedDisconnect = false
+                self.delegate?.webSocketDidConnect()
+                self.applyDriverResult(result)
+                // Session creation is not proof that polling has recovered.
+                if danmakuPlan.transport?.polling?.sendOnConnect ?? true {
+                    if let poll = result.poll { self.executePoll(poll) }
+                    else { self.runDriverTick() }
+                }
+            case .failure(let error):
+                self.handleDriverFailure(error)
+            }
         }
     }
 }
@@ -137,41 +152,23 @@ private extension HTTPPollingDanmakuConnection {
         }
     }
 
-    func startPollingTimer() {
-        stopPollingTimer()
-        pollingTimer = Timer.scheduledTimer(withTimeInterval: pollingInterval, repeats: true) { [weak self] _ in
-            // Timer 下面即被加进 RunLoop.current(主 runloop),回调必在主线程。
-            MainActor.assumeIsolated {
-                self?.runDriverTick()
-            }
-        }
-        if let pollingTimer {
-            RunLoop.current.add(pollingTimer, forMode: .common)
-        }
-    }
-
-    func stopPollingTimer() {
-        pollingTimer?.invalidate()
-        pollingTimer = nil
-    }
-
     func runDriverTick() {
-        guard let pluginDriver, isConnected, !isRequestInFlight else { return }
-
-        Task {
-            do {
-                let result = try await pluginDriver.onTick(reason: driverTimerReason)
-                applyDriverResult(result)
-                if let poll = result.poll {
-                    executePoll(poll)
-                }
-            } catch {
-                handleDriverFailure(error)
+        guard shouldReconnect, let driver = pluginDriver, isConnected, !isRequestInFlight else { return }
+        let reason = driverTimerReason
+        workQueue.enqueue(key: "tick", operation: { try await driver.onTick(reason: reason) }) { [weak self] outcome in
+            guard let self, self.shouldReconnect else { return }
+            switch outcome {
+            case .success(let result):
+                self.applyDriverResult(result)
+                if let poll = result.poll { self.executePoll(poll) }
+            case .failure(let error):
+                self.handleDriverFailure(error)
             }
         }
     }
 
     func applyDriverResult(_ result: LiveParseDanmakuDriverResult) {
+        guard shouldReconnect else { return }
         deliverMessages(result.messages)
         updateTimer(result.timer)
     }
@@ -184,20 +181,14 @@ private extension HTTPPollingDanmakuConnection {
     }
 
     func updateTimer(_ timer: LiveParseDanmakuTimerPlan?) {
-        guard let timer else { return }
-
-        switch timer.mode {
-        case .off:
-            stopPollingTimer()
-            return
-        case .heartbeat:
-            driverTimerReason = .heartbeat
-        case .polling:
-            driverTimerReason = .polling
+        pollingTimer.update(timer) { [weak self] in self?.runDriverTick() }
+        if let timer {
+            switch timer.mode {
+            case .heartbeat: driverTimerReason = .heartbeat
+            case .polling: driverTimerReason = .polling
+            case .off: break
+            }
         }
-
-        pollingInterval = max(Double(timer.intervalMs ?? 0) / 1000.0, 1.0)
-        startPollingTimer()
     }
 
     func executePoll(_ poll: LiveParseDanmakuPollRequest) {
@@ -210,12 +201,13 @@ private extension HTTPPollingDanmakuConnection {
         }
 
         isRequestInFlight = true
-        AF.request(request).responseData { [weak self] response in
+        let token = workQueue.generation
+        self.request = AF.request(request).responseData { [weak self] response in
             // Alamofire 的 responseData 默认 `queue: DispatchQueue = .main`,此处未覆盖,
             // 故回调必在主线程,直接复用主 actor 隔离即可,无需再跳一次。
             MainActor.assumeIsolated {
-                guard let self else { return }
-                self.isRequestInFlight = false
+                guard let self, self.shouldReconnect, self.workQueue.generation == token else { return }
+                self.request = nil
 
                 switch response.result {
                 case .success(let data):
@@ -284,32 +276,48 @@ private extension HTTPPollingDanmakuConnection {
 
         let textBody = String(data: data, encoding: .utf8)
 
-        Task {
-            do {
-                let result = try await pluginDriver.onFrame(
-                    frameType: .httpResponse,
-                    text: textBody,
-                    data: textBody == nil ? data : nil,
-                    statusCode: response?.statusCode,
-                    responseHeaders: responseHeaders
-                )
-                applyDriverResult(result)
-                if let poll = result.poll {
-                    executePoll(poll)
+        workQueue.enqueue(operation: {
+            try await pluginDriver.onFrame(
+                frameType: .httpResponse,
+                text: textBody,
+                data: textBody == nil ? data : nil,
+                statusCode: response?.statusCode,
+                responseHeaders: responseHeaders
+            )
+        }) { [weak self] outcome in
+            guard let self, self.shouldReconnect else { return }
+            switch outcome {
+            case .success(let result):
+                self.isRequestInFlight = false
+                if self.reconnectPolicy.attempts > 0 || !self.hasReceivedResponse {
+                    self.reconnectPolicy.connected()
+                    self.hasNotifiedDisconnect = false
+                    self.hasReceivedResponse = true
                 }
-            } catch {
-                handleDriverFailure(error)
+                self.applyDriverResult(result)
+                if let poll = result.poll { self.executePoll(poll) }
+            case .failure(let error):
+                self.handleDriverFailure(error)
             }
         }
     }
 
     func handleDriverFailure(_ error: Error) {
-        stopPollingTimer()
-        isConnected = false
-        isRequestInFlight = false
-        delegate?.webSocketDidDisconnect(error: error)
-        Task { [pluginDriver] in
-            await pluginDriver?.destroy(reason: .error)
+        guard shouldReconnect else { return }
+        tearDownAttempt()
+        if !hasNotifiedDisconnect {
+            hasNotifiedDisconnect = true
+            delegate?.webSocketDidDisconnect(error: error)
+        }
+        guard cancelReconnect == nil else { return }
+        let token = workQueue.generation
+        cancelReconnect = schedule(reconnectPolicy.delay + Double.random(in: 0...1), false) { [weak self] in
+            guard let self, self.shouldReconnect, self.workQueue.generation == token else { return }
+            self.cancelReconnect?()
+            self.cancelReconnect = nil
+            self.reconnectPolicy.beginAttempt()
+            self.delegate?.webSocketIsReconnecting(attempt: self.reconnectPolicy.attempts, maxAttempts: 0)
+            self.startSession()
         }
     }
 }

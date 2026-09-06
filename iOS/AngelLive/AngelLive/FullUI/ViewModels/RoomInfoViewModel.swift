@@ -143,7 +143,7 @@ final class RoomInfoViewModel {
     var danmuCoordinator = DanmuView.Coordinator() // 屏幕弹幕协调器
     let danmuShootScheduler = DanmakuShootScheduler() // §6.2 去突发:把批量弹幕摊开逐条发射
     var danmuSettings = DanmuSettingModel() // 弹幕设置模型
-    private var shouldReconnectDanmuOnActive = false
+    private var danmuConnectionIntent = DanmakuConnectionIntent()
     var supportsDanmu: Bool {
         PlatformCapability.supports(.danmaku, for: currentRoom.liveType)
     }
@@ -237,7 +237,7 @@ final class RoomInfoViewModel {
         qualitySwitchTask?.cancel()
         disconnectSocket()
         danmuMessages.removeAll(keepingCapacity: true)
-        danmuCoordinator.clear()
+        danmuCoordinator.clear(resumeAfterClear: danmuSettings.showDanmu)
 
         currentRoom = room
         currentRoomPlayArgs = nil
@@ -651,16 +651,16 @@ final class RoomInfoViewModel {
             return
         }
 
+        guard danmuConnectionIntent.request() else { return }
         if danmuServerIsConnected == true || danmuServerIsLoading == true {
             return
         }
 
         danmuConnectionTask?.cancel()
+        danmuServerIsLoading = true
         let room = currentRoom
         danmuConnectionTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            self.danmuServerIsLoading = true
-
             // 添加连接中消息
             self.addSystemMessage("正在连接弹幕服务器...")
 
@@ -714,7 +714,7 @@ final class RoomInfoViewModel {
             } catch is CancellationError {
                 return
             } catch {
-                guard self.currentRoom == room else { return }
+                guard !Task.isCancelled, self.currentRoom == room else { return }
                 Logger.error(error, message: "获取弹幕连接失败", category: .danmu)
                 self.danmuServerIsLoading = false
                 self.addSystemMessage("连接弹幕服务器失败：\(error.localizedDescription)")
@@ -724,7 +724,8 @@ final class RoomInfoViewModel {
 
     /// 断开弹幕连接
     @MainActor
-    func disconnectSocket() {
+    func disconnectSocket(preservingIntent: Bool = false) {
+        if !preservingIntent { danmuConnectionIntent.stop() }
         danmuConnectionTask?.cancel()
         danmuConnectionTask = nil
         // 断开 WebSocket
@@ -747,20 +748,14 @@ final class RoomInfoViewModel {
     /// 进入后台时暂停弹幕更新，避免后台 UI 更新触发崩溃
     @MainActor
     func pauseDanmuUpdatesForBackground() {
-        // 只在首次进入后台时记录状态，避免 inactive → background 两次调用覆盖
-        if !shouldReconnectDanmuOnActive {
-            shouldReconnectDanmuOnActive = danmuServerIsConnected || danmuServerIsLoading
-        }
-        Logger.debug("进入后台，断开弹幕连接，shouldReconnect: \(shouldReconnectDanmuOnActive)", category: .danmu)
-        disconnectSocket()
+        danmuConnectionIntent.suspend()
+        disconnectSocket(preservingIntent: true)
     }
 
     /// 回到前台时恢复弹幕连接（如果之前连接过）
     @MainActor
     func resumeDanmuUpdatesIfNeeded() {
-        Logger.debug("回到前台，shouldReconnect: \(shouldReconnectDanmuOnActive)", category: .danmu)
-        guard shouldReconnectDanmuOnActive else { return }
-        shouldReconnectDanmuOnActive = false
+        guard danmuConnectionIntent.resume() else { return }
         getDanmuInfo()
     }
 
@@ -855,52 +850,45 @@ final class RoomInfoViewModel {
 // MARK: - WebSocketConnectionDelegate
 extension RoomInfoViewModel: WebSocketConnectionDelegate {
     func webSocketDidConnect() {
-        Task { @MainActor in
-            danmuServerIsConnected = true
-            danmuServerIsLoading = false
-            addSystemMessage("弹幕服务器连接成功")
-            Logger.info("弹幕服务已连接", category: .danmu)
-        }
+        danmuServerIsConnected = true
+        danmuServerIsLoading = false
+        addSystemMessage("弹幕服务器连接成功")
+        Logger.info("弹幕服务已连接", category: .danmu)
     }
 
     func webSocketDidDisconnect(error: Error?) {
-        Task { @MainActor in
-            danmuServerIsConnected = false
-            danmuServerIsLoading = false
-            if let error = error {
-                addSystemMessage("弹幕服务器已断开：\(error.localizedDescription)")
-                Logger.error(error, message: "弹幕服务断开", category: .danmu)
-            }
+        danmuServerIsConnected = false
+        danmuServerIsLoading = false
+        if let error = error {
+            addSystemMessage("弹幕服务器已断开：\(error.localizedDescription)")
+            Logger.error(error, message: "弹幕服务断开", category: .danmu)
         }
     }
 
     func webSocketIsReconnecting(attempt: Int, maxAttempts: Int) {
-        Task { @MainActor in
-            // 仅首次重连提示一次，避免聊天区被多次重试刷屏
-            guard attempt == 1 else { return }
-            addSystemMessage("弹幕连接断开，正在尝试重连…")
-        }
+        danmuServerIsLoading = true
+        // 仅首次重连提示一次，避免聊天区被多次重试刷屏
+        guard attempt == 1 else { return }
+        addSystemMessage("弹幕连接断开，正在尝试重连…")
     }
 
     func webSocketDidReceiveMessage(_ message: DanmakuDisplayMessage) {
-        Task { @MainActor in
-            // 屏蔽词作用于 text:图片弹幕的 text 是降级文案,语义与纯文本弹幕一致
-            guard !danmuSettings.shouldBlockDanmu(message.text) else { return }
-            // 将弹幕消息添加到聊天列表（底部气泡）
-            addDanmuMessage(
-                text: message.text,
-                userName: message.nickname,
-                segments: message.segments
-            )
+        // 屏蔽词作用于 text:图片弹幕的 text 是降级文案,语义与纯文本弹幕一致
+        guard !danmuSettings.shouldBlockDanmu(message.text) else { return }
+        // 将弹幕消息添加到聊天列表（底部气泡）
+        addDanmuMessage(
+            text: message.text,
+            userName: message.nickname,
+            segments: message.segments
+        )
 
-            // 发射到屏幕弹幕（飞过效果）— §6.2 经去突发调度器摊开发射
-            if danmuSettings.showDanmu {
-                let showColorDanmu = danmuSettings.showColorDanmu
-                let alpha = danmuSettings.danmuAlpha
-                let font = CGFloat(danmuSettings.danmuFontSize)
-                danmuShootScheduler.enqueue { [danmuCoordinator] in
-                    danmuCoordinator.shoot(message, showColorDanmu: showColorDanmu, alpha: alpha, font: font)
-                }
+        // 发射到屏幕弹幕（飞过效果）— §6.2 经去突发调度器摊开发射
+        if danmuSettings.showDanmu {
+            let showColorDanmu = danmuSettings.showColorDanmu
+            let alpha = danmuSettings.danmuAlpha
+            let font = CGFloat(danmuSettings.danmuFontSize)
+            danmuShootScheduler.enqueue { [danmuCoordinator] in
+                danmuCoordinator.shoot(message, showColorDanmu: showColorDanmu, alpha: alpha, font: font)
             }
         }
     }

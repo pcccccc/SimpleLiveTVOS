@@ -77,6 +77,7 @@ final class RoomInfoViewModel {
     }
 
     // 弹幕相关属性
+    private var danmuConnectionTask: Task<Void, Never>?
     var socketConnection: WebSocketConnection?
     var httpPollingConnection: HTTPPollingDanmakuConnection?  // HTTP 轮询连接
     var danmuMessages: [ChatMessage] = []
@@ -540,8 +541,11 @@ final class RoomInfoViewModel {
             return
         }
 
-        Task {
-            danmuServerIsLoading = true
+        danmuServerIsLoading = true
+        danmuConnectionTask?.cancel()
+        let room = currentRoom
+        danmuConnectionTask = Task { @MainActor [weak self] in
+            guard let self else { return }
 
             // 添加连接中消息
             await MainActor.run {
@@ -550,19 +554,21 @@ final class RoomInfoViewModel {
 
             var danmakuPlan = LiveParseDanmakuPlan(args: [:], headers: [:])
             do {
-                guard let platform = SandboxPluginCatalog.platform(for: currentRoom.liveType) else {
+                guard let platform = SandboxPluginCatalog.platform(for: room.liveType) else {
                     throw NSError(
                         domain: "danmu.platform",
                         code: -1,
-                        userInfo: [NSLocalizedDescriptionKey: "未找到平台映射：\(currentRoom.liveType.rawValue)"]
+                        userInfo: [NSLocalizedDescriptionKey: "未找到平台映射：\(room.liveType.rawValue)"]
                     )
                 }
                 danmakuPlan = try await LiveParseJSPlatformManager.getDanmakuPlan(
                     platform: platform,
-                    roomId: currentRoom.roomId,
-                    userId: currentRoom.userId
+                    roomId: room.roomId,
+                    userId: room.userId
                 )
 
+                try Task.checkCancellation()
+                guard self.currentRoom == room else { return }
                 await MainActor.run {
                     let parameters = danmakuPlan.legacyParameters
 
@@ -571,10 +577,10 @@ final class RoomInfoViewModel {
                         httpPollingConnection = HTTPPollingDanmakuConnection(
                             parameters: parameters,
                             headers: danmakuPlan.headers,
-                            liveType: currentRoom.liveType,
+                            liveType: room.liveType,
                             pluginId: platform.pluginId,
-                            roomId: currentRoom.roomId,
-                            userId: currentRoom.userId,
+                            roomId: room.roomId,
+                            userId: room.userId,
                             danmakuPlan: danmakuPlan
                         )
                         httpPollingConnection?.delegate = self
@@ -584,17 +590,20 @@ final class RoomInfoViewModel {
                         socketConnection = WebSocketConnection(
                             parameters: parameters,
                             headers: danmakuPlan.headers,
-                            liveType: currentRoom.liveType,
+                            liveType: room.liveType,
                             pluginId: platform.pluginId,
-                            roomId: currentRoom.roomId,
-                            userId: currentRoom.userId,
+                            roomId: room.roomId,
+                            userId: room.userId,
                             danmakuPlan: danmakuPlan
                         )
                         socketConnection?.delegate = self
                         socketConnection?.connect()
                     }
                 }
+            } catch is CancellationError {
+                return
             } catch {
+                guard !Task.isCancelled, self.currentRoom == room else { return }
                 Logger.error(error, message: "获取弹幕连接失败", category: .danmu)
                 await MainActor.run {
                     danmuServerIsLoading = false
@@ -607,6 +616,8 @@ final class RoomInfoViewModel {
     /// 断开弹幕连接
     @MainActor
     func disconnectSocket() {
+        danmuConnectionTask?.cancel()
+        danmuConnectionTask = nil
         // 断开 WebSocket
         socketConnection?.delegate = nil
         socketConnection?.disconnect()
@@ -677,48 +688,41 @@ final class RoomInfoViewModel {
 // MARK: - WebSocketConnectionDelegate
 extension RoomInfoViewModel: WebSocketConnectionDelegate {
     func webSocketDidConnect() {
-        Task { @MainActor in
-            danmuServerIsConnected = true
-            danmuServerIsLoading = false
-            addSystemMessage("弹幕服务器连接成功")
-            Logger.info("弹幕服务已连接", category: .danmu)
-        }
+        danmuServerIsConnected = true
+        danmuServerIsLoading = false
+        addSystemMessage("弹幕服务器连接成功")
+        Logger.info("弹幕服务已连接", category: .danmu)
     }
 
     func webSocketDidDisconnect(error: Error?) {
-        Task { @MainActor in
-            danmuServerIsConnected = false
-            danmuServerIsLoading = false
-            if let error = error {
-                addSystemMessage("弹幕服务器已断开：\(error.localizedDescription)")
-                Logger.error(error, message: "弹幕服务断开", category: .danmu)
-            }
+        danmuServerIsConnected = false
+        danmuServerIsLoading = false
+        if let error = error {
+            addSystemMessage("弹幕服务器已断开：\(error.localizedDescription)")
+            Logger.error(error, message: "弹幕服务断开", category: .danmu)
         }
     }
 
     func webSocketIsReconnecting(attempt: Int, maxAttempts: Int) {
-        Task { @MainActor in
-            // 仅首次重连提示一次，避免聊天区被多次重试刷屏
-            guard attempt == 1 else { return }
-            addSystemMessage("弹幕连接断开，正在尝试重连…")
-        }
+        danmuServerIsLoading = true
+        // 仅首次重连提示一次，避免聊天区被多次重试刷屏
+        guard attempt == 1 else { return }
+        addSystemMessage("弹幕连接断开，正在尝试重连…")
     }
 
     func webSocketDidReceiveMessage(_ message: DanmakuDisplayMessage) {
-        Task { @MainActor in
-            // 屏蔽词作用于 text:图片弹幕的 text 是降级文案,语义与纯文本弹幕一致
-            guard !danmuSettings.shouldBlockDanmu(message.text) else { return }
-            // 将弹幕消息添加到聊天列表（底部气泡）
-            addDanmuMessage(text: message.text, userName: message.nickname)
+        // 屏蔽词作用于 text:图片弹幕的 text 是降级文案,语义与纯文本弹幕一致
+        guard !danmuSettings.shouldBlockDanmu(message.text) else { return }
+        // 将弹幕消息添加到聊天列表（底部气泡）
+        addDanmuMessage(text: message.text, userName: message.nickname)
 
-            // 发射到屏幕弹幕（飞过效果）— §6.2 经去突发调度器摊开发射
-            if danmuSettings.showDanmu {
-                let showColorDanmu = danmuSettings.showColorDanmu
-                let alpha = danmuSettings.danmuAlpha
-                let font = CGFloat(danmuSettings.danmuFontSize)
-                danmuShootScheduler.enqueue { [danmuCoordinator] in
-                    danmuCoordinator.shoot(message, showColorDanmu: showColorDanmu, alpha: alpha, font: font)
-                }
+        // 发射到屏幕弹幕（飞过效果）— §6.2 经去突发调度器摊开发射
+        if danmuSettings.showDanmu {
+            let showColorDanmu = danmuSettings.showColorDanmu
+            let alpha = danmuSettings.danmuAlpha
+            let font = CGFloat(danmuSettings.danmuFontSize)
+            danmuShootScheduler.enqueue { [danmuCoordinator] in
+                danmuCoordinator.shoot(message, showColorDanmu: showColorDanmu, alpha: alpha, font: font)
             }
         }
     }

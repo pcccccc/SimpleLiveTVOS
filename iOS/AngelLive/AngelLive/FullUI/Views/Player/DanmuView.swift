@@ -60,6 +60,7 @@ struct DanmuView: UIViewRepresentable {
 
     class Coordinator {
         var uiView: DanmakuView?
+        private var generation = UUID()
 
         func setup(view: DanmakuView) {
             self.uiView = view
@@ -68,6 +69,7 @@ struct DanmuView: UIViewRepresentable {
         /// 发射弹幕。共享工厂负责图文片段取图、局部降级、布局模型和样式。
         @MainActor
         func shoot(_ message: DanmakuDisplayMessage, showColorDanmu: Bool = true, alpha: CGFloat = 1.0, font: CGFloat = 16) {
+            let token = generation
             Task { @MainActor [weak self] in
                 let model = await DanmakuDisplayModelFactory.makeModel(
                     for: message,
@@ -75,29 +77,29 @@ struct DanmuView: UIViewRepresentable {
                     alpha: alpha,
                     fontSize: font
                 )
-                self?.uiView?.shoot(danmaku: model)
+                guard let self, self.generation == token else { return }
+                self.uiView?.shoot(danmaku: model)
             }
         }
 
         /// 暂停弹幕
+        @MainActor
         func pause() {
-            DispatchQueue.main.async {
-                self.uiView?.pause()
-            }
+            uiView?.pause()
         }
 
         /// 继续弹幕
+        @MainActor
         func play() {
-            DispatchQueue.main.async {
-                self.uiView?.play()
-            }
+            uiView?.play()
         }
 
         /// 清空弹幕
-        func clear() {
-            DispatchQueue.main.async {
-                self.uiView?.stop()
-            }
+        @MainActor
+        func clear(resumeAfterClear: Bool = false) {
+            generation = UUID()
+            uiView?.stop()
+            if resumeAfterClear { uiView?.play() }
         }
     }
 }

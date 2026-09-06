@@ -92,6 +92,7 @@ final class RoomInfoViewModel {
     var dynamicInfo: DynamicInfo?
     var timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
+    private var danmuConnectionTask: Task<Void, Never>?
     var socketConnection: WebSocketConnection?
     var httpPollingConnection: HTTPPollingDanmakuConnection?  // HTTP 轮询连接
     var danmuCoordinator = DanmuView.Coordinator()
@@ -553,10 +554,13 @@ final class RoomInfoViewModel {
             return
         }
         danmuServerIsLoading = true
-        let roomId = currentRoom.roomId
+        danmuConnectionTask?.cancel()
+        let room = currentRoom
+        let roomId = room.roomId
         let userId = currentRoom.userId
         let liveType = currentRoom.liveType
-        Task {
+        danmuConnectionTask = Task { @MainActor [weak self] in
+            guard let self else { return }
             do {
                 let danmakuPlan: LiveParseDanmakuPlan
                 guard let platform = SandboxPluginCatalog.platform(for: liveType) else {
@@ -571,6 +575,8 @@ final class RoomInfoViewModel {
                     roomId: roomId,
                     userId: userId
                 )
+                try Task.checkCancellation()
+                guard self.currentRoom == room else { return }
                 await MainActor.run {
                     let parameters = danmakuPlan.legacyParameters
 
@@ -602,7 +608,10 @@ final class RoomInfoViewModel {
                         socketConnection?.connect()
                     }
                 }
+            } catch is CancellationError {
+                return
             } catch {
+                guard !Task.isCancelled, self.currentRoom == room else { return }
                 await MainActor.run {
                     danmuServerIsLoading = false
                 }
@@ -611,6 +620,8 @@ final class RoomInfoViewModel {
     }
     
     func disConnectSocket() {
+        danmuConnectionTask?.cancel()
+        danmuConnectionTask = nil
         // 断开 WebSocket
         socketConnection?.delegate = nil
         socketConnection?.disconnect()
@@ -622,7 +633,7 @@ final class RoomInfoViewModel {
         httpPollingConnection = nil
 
         // §6.2 清空去突发缓冲,避免陈旧弹幕在切房/断流后继续飞出
-        Task { @MainActor in danmuShootScheduler.reset() }
+        danmuShootScheduler.reset()
 
         danmuServerIsConnected = false
         danmuServerIsLoading = false
@@ -655,46 +666,37 @@ final class RoomInfoViewModel {
 
 extension RoomInfoViewModel: WebSocketConnectionDelegate {
     func webSocketDidReceiveMessage(_ message: DanmakuDisplayMessage) {
-        // §6.2 经去突发调度器摊开发射(调度器 @MainActor,故包一层 Task)
-        Task { @MainActor in
-            let settings = appViewModel.danmuSettingsViewModel
-            // 屏蔽词作用于 text:图片弹幕的 text 是降级文案,语义与纯文本弹幕一致
-            guard !settings.shouldBlockDanmu(message.text) else { return }
-            let showColorDanmu = settings.showColorDanmu
-            let alpha = settings.danmuAlpha
-            let font = CGFloat(settings.danmuFontSize)
-            danmuShootScheduler.enqueue { [danmuCoordinator] in
-                danmuCoordinator.shoot(message, showColorDanmu: showColorDanmu, alpha: alpha, font: font)
-            }
+        let settings = appViewModel.danmuSettingsViewModel
+        guard settings.showDanmu, !settings.shouldBlockDanmu(message.text) else { return }
+        let showColorDanmu = settings.showColorDanmu
+        let alpha = settings.danmuAlpha
+        let font = CGFloat(settings.danmuFontSize)
+        danmuShootScheduler.enqueue { [danmuCoordinator] in
+            danmuCoordinator.shoot(message, showColorDanmu: showColorDanmu, alpha: alpha, font: font)
         }
     }
     
     func webSocketDidConnect() {
-        Task { @MainActor in
-            danmuServerIsConnected = true
-            danmuServerIsLoading = false
-            // 首次连上提示"已连接",重连成功提示"已恢复"
-            showDanmuHint(danmuHadDisconnected ? "弹幕已恢复" : "弹幕已连接")
-            danmuHadDisconnected = false
-        }
+        danmuServerIsConnected = true
+        danmuServerIsLoading = false
+        // 首次连上提示"已连接",重连成功提示"已恢复"
+        showDanmuHint(danmuHadDisconnected ? "弹幕已恢复" : "弹幕已连接")
+        danmuHadDisconnected = false
     }
 
     func webSocketDidDisconnect(error: Error?) {
-        Task { @MainActor in
-            danmuServerIsConnected = false
-            danmuServerIsLoading = false
-            danmuHadDisconnected = true
-            if let error {
-                showDanmuHint("弹幕连接已断开:\(error.localizedDescription)")
-            }
+        danmuServerIsConnected = false
+        danmuServerIsLoading = false
+        danmuHadDisconnected = true
+        if let error {
+            showDanmuHint("弹幕连接已断开:\(error.localizedDescription)")
         }
     }
 
     func webSocketIsReconnecting(attempt: Int, maxAttempts: Int) {
-        Task { @MainActor in
-            danmuHadDisconnected = true
-            showDanmuHint("弹幕断开,正在重连… (\(attempt)/\(maxAttempts))")
-        }
+        danmuServerIsLoading = true
+        danmuHadDisconnected = true
+        showDanmuHint(maxAttempts > 0 ? "弹幕断开,正在重连… (\(attempt)/\(maxAttempts))" : "弹幕断开，正在重连…（第 \(attempt) 次）")
     }
 
     /// 显示左下角气泡并安排自动隐藏(默认 3 秒)。重复调用会重置计时。

@@ -1,8 +1,18 @@
 import Foundation
 
+protocol DanmakuRuntimeDriving: Sendable {
+    func createSession() async throws -> LiveParseDanmakuDriverResult
+    func onOpen() async throws -> LiveParseDanmakuDriverResult
+    func onTick(reason: PluginJSDanmakuDriver.TickReason) async throws -> LiveParseDanmakuDriverResult
+    func onFrame(frameType: PluginJSDanmakuDriver.IncomingFrameType, text: String?, data: Data?, statusCode: Int?, responseHeaders: [String: String]?) async throws -> LiveParseDanmakuDriverResult
+    func destroy(reason: PluginJSDanmakuDriver.DestroyReason) async
+}
+
+typealias DanmakuDriverFactory = @MainActor (String, String, String?, LiveParseDanmakuPlan) -> any DanmakuRuntimeDriving
+
 /// 无可变状态:全部存储属性均为 `let` 且类型 `Sendable`,方法只是把调用透传给插件运行时。
 /// 故本类天然 `Sendable`,可安全跨隔离域捕获(连接层的 `Task { [pluginDriver] ... }` 依赖这一点)。
-final class PluginJSDanmakuDriver: Sendable {
+final class PluginJSDanmakuDriver: DanmakuRuntimeDriving {
     enum TickReason: String {
         case heartbeat
         case polling

@@ -16,7 +16,7 @@ struct DanmuView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> DanmakuView {
         let view = DanmakuView(frame: .init(x: 0, y: 0, width: 1920, height: height))
-        // 各端统一采用 B 站风格的顶部首个安全轨道;此处显式设置以固定 tvOS 行为。
+        // 各端统一采用顶部首个安全轨道;此处显式设置以固定 tvOS 行为。
         view.floatingTrackPolicy = .topPriority
         view.playingSpeed = Float(appViewModel.danmuSettingsViewModel.danmuSpeed)
         view.play()

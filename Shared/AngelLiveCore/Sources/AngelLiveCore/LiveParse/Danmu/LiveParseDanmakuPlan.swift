@@ -296,7 +296,7 @@ struct LiveParseDanmakuWriteAction: Decodable, Sendable {
     let bytesBase64: String?
 }
 
-struct LiveParseDanmakuTimerPlan: Decodable, Sendable {
+struct LiveParseDanmakuTimerPlan: Decodable, Sendable, Equatable {
     enum Mode: String, Decodable, Sendable {
         case off
         case heartbeat

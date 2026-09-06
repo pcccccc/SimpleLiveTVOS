@@ -20,7 +20,7 @@
 |---|------|------|
 | F1 | 弹幕运动用 `CABasicAnimation` 改 `position.x`,由 Render Server 在 **GPU 合成**,主线程每帧基本不参与运动 | `DanmakuKit/Core/DanmakuTrack.swift:236-252` |
 | F2 | 每条弹幕文字**只光栅化一次**,画进 `CGContext` 生成 `CGImage` 缓存到 `layer.contents`,分摊在 16 条后台队列 | `DanmakuKit/Core/DanmakuAsyncLayer.swift`(`drawDanmakuQueueCount = 16`) |
-| F3 | 选轨走 `DanmakuView.FloatingTrackPolicy` 策略；默认 `.topPriority` 按 B 站 `AlignTopRetainer` 语义从顶部复用第一条安全轨道，`.scattered` 仅保留为旧版兼容选项 | `DanmakuKit/Core/DanmakuView.swift`(`findSuitableTrack`) |
+| F3 | 选轨走 `DanmakuView.FloatingTrackPolicy` 策略；默认 `.topPriority` 从顶部复用第一条安全轨道，`.scattered` 仅保留为旧版兼容选项 | `DanmakuKit/Core/DanmakuView.swift`(`findSuitableTrack`) |
 | F4 | 同一 runloop tick 内 shoot 的所有弹幕,起点 x **完全相同**(右边缘) | `DanmakuTrack.swift:103` |
 | F5 | 速度只由 `displayTime` 决定,无任何时间/速度抖动 | `DanmakuTrack.swift:240-243` |
 | F6 | 切字号已可用:`trackHeight = fontSize * 1.35` 触发 `recalculateTracks()` | `iOS/.../Player/DanmuView.swift:49`、`DanmakuView.swift:86-91` |
@@ -178,7 +178,7 @@
 - 三端表现一致。
 
 ### 6.2 错落感调度实施清单（已完成）
-- [x] **B 站风格顶部安全轨道已落地（2026-08-17）**：共享引擎默认从顶部逐轨碰撞检测，复用第一条安全轨道；上方轨道确实无法容纳时才向下扩展。
+- [x] **顶部安全轨道已落地（2026-08-17）**：共享引擎默认从顶部逐轨碰撞检测，复用第一条安全轨道；上方轨道确实无法容纳时才向下扩展。
 - [x] tvOS 继续显式设置 `.topPriority`；iOS/macOS 使用相同默认行为，`.scattered` 仅作为旧版兼容策略保留。
 - [x] 去突发:喂弹幕处加缓冲队列,一批不同帧发,摊到 1–2 秒带随机抖动逐条发出。
 - [x] 速度微抖动:建模型时 `displayTime` 加 ±10~15% 随机。
