@@ -178,7 +178,7 @@ struct FavoriteView: View {
     @MainActor
     private func loadFavorites(force: Bool = false) async {
         if force {
-            await viewModel.syncWithActor()
+            await viewModel.pullToRefresh()
         } else if viewModel.shouldSync() {
             await viewModel.syncWithActor()
         }
@@ -187,13 +187,13 @@ struct FavoriteView: View {
     private func handleOnAppear() {
         if !FavoriteView.hasPerformedInitialSync {
             FavoriteView.hasPerformedInitialSync = true
-            startFavoriteSync(force: true)
+            startFavoriteSync(force: false)
             return
         }
 
         guard shouldForceRefresh() else { return }
 
-        startFavoriteSync(force: true)
+        startFavoriteSync(force: false)
         FavoriteView.lastLeaveTimestamp = Date()
     }
 
@@ -206,9 +206,9 @@ struct FavoriteView: View {
 
     private func refreshContent() {
         guard !isRefreshing else { return }
+        isRefreshing = true
 
         Task {
-            isRefreshing = true
             withAnimation(.linear(duration: 1).repeatForever(autoreverses: false)) {
                 rotationAngle = 360
             }

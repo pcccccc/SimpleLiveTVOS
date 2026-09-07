@@ -86,6 +86,14 @@ public final class AppFavoriteModel {
     public var shouldShowBlockingCloudError: Bool { cloudReturnError && roomList.isEmpty }
 
     @ObservationIgnored private let refreshSession: FavoriteRefreshSession
+    @ObservationIgnored private var favoriteRefreshStartTask: Task<FavoriteRefreshHandle?, Never>?
+    @ObservationIgnored private var automaticFavoriteSyncTask: Task<Void, Never>?
+    @ObservationIgnored private var manualFavoriteSyncTask: Task<Void, Never>?
+    @ObservationIgnored private var favoriteCatalogRevision: UInt = 0
+    @ObservationIgnored private var favoriteCatalogSnapshot: Set<SandboxPluginMetadata>?
+    @ObservationIgnored private var refreshedCatalogRevision: UInt?
+    @ObservationIgnored private var refreshedRoomKeys: Set<String>?
+    @ObservationIgnored private let refreshNow: @MainActor () -> Date
     @ObservationIgnored private var refreshEventTask: Task<Void, Never>?
     @ObservationIgnored private var activeFavoriteRefreshGenerationID: UUID?
     @ObservationIgnored private var activeFavoriteForegroundCompletion: Task<Void, Never>?
@@ -104,8 +112,12 @@ public final class AppFavoriteModel {
         static let favoriteICloudSyncEnabled = "AppFavoriteModel.favoriteICloudSyncEnabled"
     }
 
-    public init(refreshSession: FavoriteRefreshSession = FavoriteRefreshSession()) {
+    public init(
+        refreshSession: FavoriteRefreshSession = FavoriteRefreshSession(),
+        refreshNow: @escaping @MainActor () -> Date = { Date() }
+    ) {
         self.refreshSession = refreshSession
+        self.refreshNow = refreshNow
         if UserDefaults.standard.object(forKey: Keys.favoriteICloudSyncEnabled) == nil {
             self.favoriteICloudSyncEnabled = true   // 默认开启,保留旧行为
         } else {
@@ -235,7 +247,20 @@ public final class AppFavoriteModel {
         members: [LiveModel],
         trigger: FavoriteRefreshTrigger
     ) async {
+        if let starting = favoriteRefreshStartTask {
+            let handle = await starting.value
+            if trigger == .automatic, matchesRefreshedInputs(members) {
+                await handle?.foregroundCompletion.value
+            } else {
+                // Serialize creation before replacing the session; do not wait for
+                // the previous generation's foreground or network work to finish.
+                await refreshStatesAndApply(members: members, trigger: trigger)
+            }
+            return
+        }
+
         if trigger == .automatic,
+           matchesRefreshedInputs(members),
            let generationID = activeFavoriteRefreshGenerationID,
            let foregroundCompletion = activeFavoriteForegroundCompletion {
             Logger.debug(
@@ -246,6 +271,29 @@ public final class AppFavoriteModel {
             return
         }
 
+        if trigger == .automatic, !needsAutomaticRefresh(members: members) {
+            return
+        }
+
+        // Publish the shared task before the first suspension. MainActor alone
+        // does not prevent another caller entering while plugin resolution awaits.
+        let catalogRevision = favoriteCatalogRevision
+        let starting = Task { @MainActor in
+            let handle = await startFavoriteRefresh(members: members, trigger: trigger, catalogRevision: catalogRevision)
+            favoriteRefreshStartTask = nil
+            return handle
+        }
+        favoriteRefreshStartTask = starting
+        let handle = await starting.value
+        await handle?.foregroundCompletion.value
+    }
+
+    @MainActor
+    private func startFavoriteRefresh(
+        members: [LiveModel],
+        trigger: FavoriteRefreshTrigger,
+        catalogRevision: UInt
+    ) async -> FavoriteRefreshHandle? {
         guard !members.isEmpty else {
             refreshEventTask?.cancel()
             await refreshSession.cancel()
@@ -254,8 +302,11 @@ public final class AppFavoriteModel {
             currentFavoriteGenerationID = nil
             favoriteForegroundPhase = .idle
             pluginRefreshPhases = [:]
+            refreshedRoomKeys = []
+            refreshedCatalogRevision = catalogRevision
+            lastFavoriteRefreshTime = refreshNow()
             applyRoomList([])
-            return
+            return nil
         }
 
         refreshEventTask?.cancel()
@@ -264,6 +315,8 @@ public final class AppFavoriteModel {
         hasFlushedFirstRoomPatch = false
 
         let handle = await refreshSession.start(members: members, trigger: trigger)
+        refreshedRoomKeys = Set(handle.roomKeys)
+        refreshedCatalogRevision = catalogRevision
         activeFavoriteRefreshGenerationID = handle.generationID
         activeFavoriteForegroundCompletion = handle.foregroundCompletion
         currentFavoriteGenerationID = handle.generationID
@@ -298,7 +351,7 @@ public final class AppFavoriteModel {
             self.activeFavoriteRefreshGenerationID = nil
             self.activeFavoriteForegroundCompletion = nil
         }
-        await handle.foregroundCompletion.value
+        return handle
     }
 
     @MainActor
@@ -351,12 +404,13 @@ public final class AppFavoriteModel {
                 generationID: event.generationID,
                 pendingPluginIds: pendingPluginIds
             )
-            lastFavoriteRefreshTime = Date()
+            lastFavoriteRefreshTime = refreshNow()
 
         case .completed(_, let summary):
             patchFlushTask?.cancel()
             patchFlushTask = nil
             await flushRoomPatches(generationID: event.generationID)
+            guard event.generationID == currentFavoriteGenerationID else { return }
             for plugin in summary.plugins {
                 if case .unavailable = latestPluginRefreshPhases[plugin.pluginId] {
                     latestPluginRefreshPhases[plugin.pluginId] = .unavailable(
@@ -377,7 +431,7 @@ public final class AppFavoriteModel {
                 pendingPluginIds: []
             )
             lastFavoriteRefreshSummary = summary
-            lastFavoriteRefreshTime = Date()
+            lastFavoriteRefreshTime = refreshNow()
         }
     }
 
@@ -490,26 +544,61 @@ public final class AppFavoriteModel {
         }
     }
 
-    /// 判断是否需要同步数据
-    /// - Returns: 如果列表为空或距离上次同步超过1分钟则返回true
+    /// 插件安装、卸载或原地更新后，旧目录下的刷新结果不能阻止新目录刷新。
+    @MainActor
+    @discardableResult
+    public func updateFavoriteRefreshCatalog(_ plugins: [String: SandboxPluginMetadata]) -> Bool {
+        let snapshot = Set(plugins.values)
+        defer { favoriteCatalogSnapshot = snapshot }
+        guard let previous = favoriteCatalogSnapshot, previous != snapshot else { return false }
+        favoriteCatalogRevision &+= 1
+        return true
+    }
+
+    @MainActor
+    private func matchesRefreshedInputs(_ members: [LiveModel]) -> Bool {
+        guard refreshedCatalogRevision == favoriteCatalogRevision,
+              let refreshedRoomKeys else { return false }
+        return Set(members.map { favoriteKey(for: $0) }) == refreshedRoomKeys
+    }
+
+    @MainActor
+    private func needsAutomaticRefresh(members: [LiveModel]) -> Bool {
+        guard matchesRefreshedInputs(members), let lastFavoriteRefreshTime else { return true }
+        return refreshNow().timeIntervalSince(lastFavoriteRefreshTime) > 60
+    }
+
+    @MainActor
+    var hasActiveFavoriteRefresh: Bool {
+        favoriteRefreshStartTask != nil || activeFavoriteRefreshGenerationID != nil
+    }
+
+    /// 同一批收藏的自动刷新共用一分钟有效期；手动刷新不受此限制。
+    @MainActor
     public func shouldSync() -> Bool {
-        // 如果列表为空，需要同步
-        if roomList.isEmpty {
-            return true
-        }
-
-        // 如果从未同步过，需要同步
-        guard let lastSync = lastFavoriteRefreshTime else {
-            return true
-        }
-
-        // 如果距离上次同步超过1分钟，需要同步
-        let timeInterval = Date().timeIntervalSince(lastSync)
-        return timeInterval > 60 // 60秒 = 1分钟
+        if hasActiveFavoriteRefresh, matchesRefreshedInputs(roomList) { return false }
+        return needsAutomaticRefresh(members: roomList)
     }
 
     @MainActor
     public func syncWithActor() async {
+        if let task = automaticFavoriteSyncTask {
+            await task.value
+            if !matchesRefreshedInputs(roomList) {
+                await syncWithActor()
+            }
+            return
+        }
+        let task = Task { @MainActor in
+            await performAutomaticFavoriteSync()
+            automaticFavoriteSyncTask = nil
+        }
+        automaticFavoriteSyncTask = task
+        await task.value
+    }
+
+    @MainActor
+    private func performAutomaticFavoriteSync() async {
         // 本地优先:先用本地数据秒显(仅当内存为空,避免整页重建导致滚动卡顿)。
         let local = await FavoriteLocalStore.shared.load()
         let hasExistingData = !roomList.isEmpty
@@ -545,6 +634,20 @@ public final class AppFavoriteModel {
     /// 下拉刷新专用方法 - 不清空数据，保持 List 结构稳定
     @MainActor
     public func pullToRefresh() async {
+        if let task = manualFavoriteSyncTask {
+            await task.value
+            return
+        }
+        let task = Task { @MainActor in
+            await performManualFavoriteRefresh()
+            manualFavoriteSyncTask = nil
+        }
+        manualFavoriteSyncTask = task
+        await task.value
+    }
+
+    @MainActor
+    private func performManualFavoriteRefresh() async {
         let local = await FavoriteLocalStore.shared.load()
         let members = roomList.isEmpty ? local : roomList
 

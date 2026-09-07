@@ -1,5 +1,8 @@
 # Bug2 修复文档:iOS 直播播放中「后台→前台」概率卡死
 
+> 2026-09-07 宿主接入核对：iOS FullUI 已将业务状态、结束事件接入 `KSCorePlayerView` 的统一回调，取消 `onAppear` 对同一 Coordinator 回调的覆盖。相同 URL 的 KSPlayer 重连改为显式替换媒体项并重新准备播放，不再通过 URL 临时置空等待 SwiftUI 拆建视图；保留活跃画中画控制器的 delegate。不同内核类型仍走 KSPlayer 的 `set(url:options:)`。这些是宿主接入修复，**不是后台冻结根因或修复成功的证据**；下述历史诊断需按当前 KSPlayer 版本和新安装包重新验证。
+> 验证：最后源码编辑后，Xcode MCP workspace `BuildProject` 成功，确认重新编译修改文件，Navigator error 为 0。iPhone 17 Pro Max 模拟器 / iOS 27.0（24A5423a）重新执行 `DeviceInteractionInstallAndRun` 成功；从已有收藏进入播放、暂停/恢复、手动重载、退出后重新进入播放均通过。同地址分支未独立证明，真机快速前后台与画中画未验证。`AngelLive` scheme 当前没有自动测试，未运行单元测试；macOS、tvOS 未验证。
+>
 > 状态:埋点已就位,待真机采证 · 2026-06-21
 > 平台:iOS(iPhone,KSPlayer 内核,Metal 渲染)
 > 现象:横屏/竖屏播放中按 Home 进后台,再返回前台,**有概率**画面定格;此时点「重新加载」新画面仍卡,只有**退出直播间重进**才能恢复。

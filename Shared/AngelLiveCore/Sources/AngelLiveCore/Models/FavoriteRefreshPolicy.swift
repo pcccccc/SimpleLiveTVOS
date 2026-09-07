@@ -14,8 +14,8 @@ public struct FavoriteRefreshRequestPolicy: Sendable, Equatable {
         foregroundBudget: Duration = .seconds(4),
         totalBudget: Duration = .seconds(20),
         notFoundRetryDelay: Duration = .milliseconds(400),
-        maximumConcurrentRequests: Int = 8,
-        maximumConcurrentRequestsPerPlugin: Int = 3
+        maximumConcurrentRequests: Int = 20,
+        maximumConcurrentRequestsPerPlugin: Int = 5
     ) {
         self.foregroundBudget = foregroundBudget
         self.totalBudget = totalBudget
@@ -413,7 +413,10 @@ func favoriteRefreshFailure(
     elapsed: Duration = .zero,
     pluginId: String
 ) -> FavoriteRefreshFailure {
-    FavoriteLiveInfoRequestExecutor(
+    // The request executor has already measured the complete attempt sequence.
+    // Session-level classification must not replace it with fallback 1 / zero.
+    if let failure = error as? FavoriteRefreshFailure { return failure }
+    return FavoriteLiveInfoRequestExecutor(
         fetcher: PluginFavoriteLiveInfoFetcher(),
         timing: ContinuousFavoriteRefreshTiming(),
         policy: .default

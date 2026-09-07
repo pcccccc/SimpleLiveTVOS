@@ -18,6 +18,7 @@ struct FavoriteMainView: View {
     @State var timer: Timer?
     @State var second = 0
     @State var firstLoad = true
+    @State private var isRefreshTaskRunning = false
     
     /// 顶部 loading 只跟随收藏状态刷新的前台阶段，完成后自动隐藏。
     private var syncBanner: some View {
@@ -58,7 +59,7 @@ struct FavoriteMainView: View {
                                 showRetry: true,
                                 onDismiss: {},
                                 onRetry: {
-                                    getViewStateAndFavoriteList()
+                                    getViewStateAndFavoriteList(manual: true)
                                 }
                             )
                         }else {
@@ -69,7 +70,7 @@ struct FavoriteMainView: View {
                         Text(appViewModel.favoriteViewModel.cloudKitStateString)
                             .font(.title3)
                         Button {
-                            getViewStateAndFavoriteList()
+                            getViewStateAndFavoriteList(manual: true)
                         } label: {
                             Label("刷新", systemImage: "arrow.counterclockwise")
                                 .font(.headline.bold())
@@ -153,7 +154,7 @@ struct FavoriteMainView: View {
                     showRetry: true,
                     onDismiss: {},
                     onRetry: {
-                        getViewStateAndFavoriteList()
+                        getViewStateAndFavoriteList(manual: true)
                     }
                 )
             }
@@ -180,13 +181,10 @@ struct FavoriteMainView: View {
                 }
             }
         }
-        .onPlayPauseCommand(perform: {
-            getViewStateAndFavoriteList()
-        })
+        // ContentView owns the remote command; this view consumes it once.
         .onReceive(NotificationCenter.default.publisher(for: SimpleLiveNotificationNames.favoriteRefresh)) { _ in
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0, execute: {
-                getViewStateAndFavoriteList()
-            })
+            guard appViewModel.selection == 0 else { return }
+            getViewStateAndFavoriteList(manual: true)
         }
         .onChange(of: scenePhase) { oldValue, newValue in
             switch newValue {
@@ -195,9 +193,7 @@ struct FavoriteMainView: View {
                     self.timer = nil
                     // 只有当前在收藏页面时才触发刷新
                     if second > 300 && appViewModel.selection == 0 {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0, execute: {
-                            getViewStateAndFavoriteList()
-                        })
+                        getViewStateAndFavoriteList()
                     }
                 case .background:
                     Logger.debug("background。。。。", category: .app)
@@ -224,10 +220,16 @@ struct FavoriteMainView: View {
 
 //MARK: Events
 extension FavoriteMainView {
-    private func getViewStateAndFavoriteList() {
+    private func getViewStateAndFavoriteList(manual: Bool = false) {
+        guard !isRefreshTaskRunning else { return }
+        isRefreshTaskRunning = true
         Task {
-            guard appViewModel.favoriteViewModel.isLoading == false else { return }
-            await appViewModel.favoriteViewModel.syncWithActor()
+            defer { isRefreshTaskRunning = false }
+            if manual {
+                await appViewModel.favoriteViewModel.pullToRefresh()
+            } else {
+                await appViewModel.favoriteViewModel.syncWithActor()
+            }
             liveViewModel.roomList = appViewModel.favoriteViewModel.roomList
             self.second = 0
             TopShelfManager.notifyContentChanged()

@@ -185,18 +185,6 @@ private final class LoginTransactionRedirectDelegate: NSObject, URLSessionTaskDe
                     mergedCookieHeader(transaction: transactionCookie, explicit: explicitCookieHeader),
                     forHTTPHeaderField: "Cookie"
                 )
-#if DEBUG
-                Logger.debug(
-                    """
-                    [JSRuntime][HTTP][REDIRECT]
-                    pluginId=\(pluginId)
-                    request.url=\(redirectedRequest.url.map(SensitivePluginHTTPConsoleSummary.redactedURL) ?? "<missing>")
-                    request.cookie=\(SensitivePluginHTTPConsoleSummary.cookieHeaderDiagnostics(redirectedRequest.value(forHTTPHeaderField: "Cookie")))
-                    request.headers=\(SensitivePluginHTTPConsoleSummary.redactedHeaders(redirectedRequest.allHTTPHeaderFields ?? [:]))
-                    """,
-                    category: .plugin
-                )
-#endif
                 completionHandler(redirectedRequest)
             } catch let error as LoginTransactionError {
                 await state.record(failure: error)
@@ -1835,42 +1823,6 @@ private extension JSRuntime {
                 "[JSRuntime][HTTP] pluginId=\(pluginId) method=\(callback.envelope.method) status=\(snapshot.statusCode) bytes=\(snapshot.data.count) duration=\(String(format: "%.3f", elapsed))s",
                 category: .plugin
             )
-#if DEBUG
-            let requestBody = callback.envelope.body.flatMap { String(data: $0, encoding: .utf8) }
-            let transactionLabel = callback.envelope.transactionId.map {
-                String($0.prefix(8))
-            } ?? "none"
-            let cookieInjectionLabel: String
-            if callback.envelope.cookieInject.isEmpty {
-                cookieInjectionLabel = "none"
-            } else if isManifestManagedCredentialDestination(
-                callback.envelope.url,
-                credentialDomains: credentialDomains
-            ) {
-                cookieInjectionLabel = "allowed_manifest_destination"
-            } else {
-                cookieInjectionLabel = "skipped_non_manifest_destination"
-            }
-            Logger.debug(
-                """
-                [JSRuntime][HTTP][DETAIL]
-                pluginId=\(pluginId)
-                request.method=\(callback.envelope.method)
-                request.url=\(SensitivePluginHTTPConsoleSummary.redactedURL(callback.envelope.url))
-                request.authMode=\(callback.envelope.authMode.rawValue)
-                request.transaction=\(transactionLabel)
-                request.cookieInject=\(cookieInjectionLabel)
-                request.cookie=\(snapshot.requestCookieDiagnostics)
-                request.headers=\(SensitivePluginHTTPConsoleSummary.redactedHeaders(callback.requestHeaders))
-                request.body=\(SensitivePluginHTTPConsoleSummary.redactedBody(requestBody))
-                response.status=\(snapshot.statusCode)
-                response.headers=\(SensitivePluginHTTPConsoleSummary.redactedHeaders(snapshot.headers))
-                response.body=
-                \(SensitivePluginHTTPConsoleSummary.redactedBody(bodyText))
-                """,
-                category: .plugin
-            )
-#endif
             if PluginConsoleService.shared.isEnabled {
                 Self.logHTTPRecord(
                     pluginId: pluginId,
@@ -1899,41 +1851,10 @@ private extension JSRuntime {
             callback.resolve.call(withArguments: [String(data: data, encoding: .utf8) ?? "{}"])
 
         case .failure(let failure):
-#if DEBUG
-            let requestBody = callback.envelope.body.flatMap { String(data: $0, encoding: .utf8) }
-            let transactionLabel = callback.envelope.transactionId.map {
-                String($0.prefix(8))
-            } ?? "none"
-            let cookieInjectionLabel: String
-            if callback.envelope.cookieInject.isEmpty {
-                cookieInjectionLabel = "none"
-            } else if isManifestManagedCredentialDestination(
-                callback.envelope.url,
-                credentialDomains: credentialDomains
-            ) {
-                cookieInjectionLabel = "allowed_manifest_destination"
-            } else {
-                cookieInjectionLabel = "skipped_non_manifest_destination"
-            }
-            Logger.debug(
-                """
-                [JSRuntime][HTTP][DETAIL][FAILURE]
-                pluginId=\(pluginId)
-                request.method=\(callback.envelope.method)
-                request.url=\(SensitivePluginHTTPConsoleSummary.redactedURL(callback.envelope.url))
-                request.authMode=\(callback.envelope.authMode.rawValue)
-                request.transaction=\(transactionLabel)
-                request.cookieInject=\(cookieInjectionLabel)
-                request.headers=\(SensitivePluginHTTPConsoleSummary.redactedHeaders(callback.requestHeaders))
-                request.body=\(SensitivePluginHTTPConsoleSummary.redactedBody(requestBody))
-                failure.domain=\(failure.domain)
-                failure.code=\(failure.code)
-                failure.receivedHTTPResponse=\(failure.receivedHTTPResponse)
-                failure.message=\(SensitivePluginHTTPConsoleSummary.redactedText(failure.message))
-                """,
+            Logger.warning(
+                "[JSRuntime][HTTP][FAILURE] pluginId=\(pluginId) method=\(callback.envelope.method) domain=\(failure.domain) code=\(failure.code) receivedHTTPResponse=\(failure.receivedHTTPResponse) duration=\(String(format: "%.3f", elapsed))s",
                 category: .plugin
             )
-#endif
             if PluginConsoleService.shared.isEnabled {
                 Self.logHTTPRecord(
                     pluginId: pluginId,

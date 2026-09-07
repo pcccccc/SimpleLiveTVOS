@@ -21,17 +21,29 @@ public struct KSCorePlayerView: View {
     @Binding
     private var title: String
     private let subtitleDataSource: SubtitleDataSource?
+    private let onPlaybackStateChanged: ((KSPlayerLayer, KSPlayerState) -> Void)?
+    private let onPlaybackFinished: ((KSPlayerLayer, Error?) -> Void)?
 
-    public init(config: KSVideoPlayer.Coordinator, url: URL, options: KSOptions, title: Binding<String>, subtitleDataSource: SubtitleDataSource?) {
+    public init(
+        config: KSVideoPlayer.Coordinator,
+        url: URL,
+        options: KSOptions,
+        title: Binding<String>,
+        subtitleDataSource: SubtitleDataSource?,
+        onPlaybackStateChanged: ((KSPlayerLayer, KSPlayerState) -> Void)? = nil,
+        onPlaybackFinished: ((KSPlayerLayer, Error?) -> Void)? = nil
+    ) {
         self.config = config
         self.url = url
         self.options = options
         _title = title
         self.subtitleDataSource = subtitleDataSource
+        self.onPlaybackStateChanged = onPlaybackStateChanged
+        self.onPlaybackFinished = onPlaybackFinished
     }
 
     public var body: some View {
-        KSVideoPlayer(coordinator: config, url: url, options: options)
+        player
             .onStateChanged { playerLayer, state in
                 if state == .readyToPlay {
                     if let subtitleDataSource {
@@ -41,6 +53,7 @@ public struct KSCorePlayerView: View {
                         title = movieTitle
                     }
                 }
+                onPlaybackStateChanged?(playerLayer, state)
             }
             .onBufferChanged { bufferedCount, consumeTime in
                 KSLog("bufferedCount:\(bufferedCount),consumeTime:\(consumeTime)")
@@ -96,6 +109,15 @@ public struct KSCorePlayerView: View {
             }
         }
         #endif
+    }
+
+    private var player: KSVideoPlayer {
+        let player = KSVideoPlayer(coordinator: config, url: url, options: options)
+        // Only FullUI supplies a business observer. Preserve ShellUI's existing callbacks.
+        if let onPlaybackFinished {
+            return player.onFinish(onPlaybackFinished)
+        }
+        return player
     }
 }
 

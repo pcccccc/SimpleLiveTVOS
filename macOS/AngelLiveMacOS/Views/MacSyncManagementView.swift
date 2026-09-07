@@ -82,7 +82,7 @@ struct MacSyncManagementView: View {
                     get: { favoriteModel.favoriteICloudSyncEnabled },
                     set: { newValue in
                         favoriteModel.favoriteICloudSyncEnabled = newValue
-                        if newValue { Task { await favoriteModel.syncWithActor() } }
+                        if newValue { Task { await favoriteModel.pullToRefresh() } }
                     }
                 )) {
                     HStack(spacing: 12) {

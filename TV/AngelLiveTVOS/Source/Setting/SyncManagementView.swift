@@ -437,7 +437,7 @@ struct FavoriteSyncDetailView: View {
                 set: { newValue in
                     appViewModel.favoriteViewModel.favoriteICloudSyncEnabled = newValue
                     if newValue {
-                        Task { await appViewModel.favoriteViewModel.syncWithActor() }
+                        Task { await appViewModel.favoriteViewModel.pullToRefresh() }
                     }
                 }
             )) {

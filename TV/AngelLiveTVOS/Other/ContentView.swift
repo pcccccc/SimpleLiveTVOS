@@ -153,6 +153,10 @@ struct ContentView: View {
             }
         }
         .onChange(of: appViewModel.pluginAvailability.catalogRevision) { _, _ in
+            let catalogChanged = appViewModel.favoriteViewModel.updateFavoriteRefreshCatalog(SandboxPluginCatalog.installedPluginMap())
+            if catalogChanged, presentsFullUI {
+                Task { await appViewModel.favoriteViewModel.syncWithActor() }
+            }
             updateHomeRecommendationAvailability()
         }
         .onChange(of: appViewModel.pluginAvailability.isChecking) { _, isChecking in

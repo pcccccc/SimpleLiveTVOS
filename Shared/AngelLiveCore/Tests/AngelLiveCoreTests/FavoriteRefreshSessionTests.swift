@@ -20,11 +20,13 @@ struct FavoriteRefreshSessionTests {
             ),
             standardCode: .authRequired,
             receivedHTTPResponse: false,
-            attempts: 1,
+            attempts: 2,
             elapsed: .milliseconds(125),
-            pluginId: "ks"
+            pluginId: "fixture.plugin"
         )
-        let diagnostic = FavoriteRefreshFailureDiagnostic(room: room, failure: failure)
+        let classified = favoriteRefreshFailure(from: failure, pluginId: "fixture.plugin")
+        #expect(classified == failure)
+        let diagnostic = FavoriteRefreshFailureDiagnostic(room: room, failure: classified)
         let line = diagnostic.logLine(
             generationID: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
             index: 1,
@@ -32,13 +34,15 @@ struct FavoriteRefreshSessionTests {
         )
 
         #expect(line.contains("index=1/27"))
-        #expect(line.contains("pluginId=\"ks\""))
+        #expect(line.contains("pluginId=\"fixture.plugin\""))
         #expect(line.contains("roomFingerprint="))
         #expect(line.contains("kind=authenticationRequired"))
         #expect(line.contains("standardCode=AUTH_REQUIRED"))
         #expect(line.contains("underlyingDomain=\"NSURLErrorDomain\\nInjected\""))
         #expect(line.contains("underlyingCode=-1009"))
-        #expect(line.contains("receivedHTTPResponse=false attempts=1"))
+        #expect(line.contains("receivedHTTPResponse=false attempts=2"))
+        #expect(diagnostic.elapsed == .milliseconds(125))
+        #expect(line.contains("elapsed=\(failure.elapsed)"))
         #expect(!line.contains("收藏状态刷新失败"))
         #expect(!line.contains("room\n\"42\""))
         #expect(!line.contains(String(repeating: "u", count: 200)))
@@ -170,25 +174,25 @@ struct FavoriteRefreshSessionTests {
         let session = makeSession(
             harness: harness,
             foregroundBudget: .seconds(2),
-            globalLimit: 8,
-            pluginLimit: 3
+            globalLimit: FavoriteRefreshRequestPolicy.default.maximumConcurrentRequests,
+            pluginLimit: FavoriteRefreshRequestPolicy.default.maximumConcurrentRequestsPerPlugin
         )
         let rooms = (0..<160).map {
-            sessionRoom(plugin: "p\($0 % 10)", id: "r\($0)")
+            sessionRoom(plugin: "p\($0 % 4)", id: "r\($0)")
         }
         let handle = await session.start(members: rooms, trigger: .automatic)
         let collector = Task { await collectEvents(handle.events) }
-        await harness.waitUntilStarted(8)
+        await harness.waitUntilStarted(20)
 
-        #expect(await harness.maximumActive == 8)
-        #expect(await harness.maximumActivePerPlugin.values.allSatisfy { $0 <= 3 })
-        #expect(await harness.totalCalls == 8)
+        #expect(await harness.maximumActive == 20)
+        #expect(await harness.maximumActivePerPlugin.values.allSatisfy { $0 == 5 })
+        #expect(await harness.totalCalls == 20)
 
         await harness.releaseAll()
         _ = await collector.value
         #expect(await harness.totalCalls == 160)
-        #expect(await harness.maximumActive <= 8)
-        #expect(await harness.maximumActivePerPlugin.values.allSatisfy { $0 <= 3 })
+        #expect(await harness.maximumActive <= 20)
+        #expect(await harness.maximumActivePerPlugin.values.allSatisfy { $0 <= 5 })
     }
 
     @Test("large refresh resolves plugin metadata once and buckets progress events")
@@ -325,6 +329,189 @@ struct FavoriteRefreshSessionTests {
         await first.value
         await second.value
         #expect(await harness.callCount("r1") == 1)
+    }
+
+    @Test("automatic callers share a refresh even while plugin resolution is suspended", arguments: [false, true])
+    @MainActor
+    func appModelCoalescesDuringStartup(cancelFirstCaller: Bool) async throws {
+        let gate = FavoriteStartupResolverGate()
+        let harness = FavoriteSessionOperationHarness(defaultBehavior: .success("1"))
+        let session = makeSession(harness: harness, resolver: FavoritePluginIDResolver(batch: { rooms in
+            await gate.resolve(rooms)
+        }))
+        let model = AppFavoriteModel(refreshSession: session)
+        let room = sessionRoom(plugin: "source-a", id: "r1")
+        model.roomList = [room]
+
+        let first = Task {
+            await model.refreshStatesAndApply(members: [room], trigger: .automatic)
+        }
+        await gate.waitUntilEntered()
+        #expect(model.currentFavoriteGenerationID == nil)
+        if cancelFirstCaller { first.cancel() }
+
+        let (entered, signal) = AsyncStream.makeStream(of: Void.self)
+        let second = Task { @MainActor in
+            signal.yield(())
+            signal.finish()
+            await model.refreshStatesAndApply(members: [room], trigger: .automatic)
+        }
+        for await _ in entered { break }
+        await gate.release()
+        await first.value
+        await second.value
+
+        #expect(await gate.calls == 1)
+        #expect(await harness.callCount("r1") == 1)
+        try await waitUntil { model.roomList.first?.liveState == "1" }
+    }
+
+    @Test("manual refresh during startup replaces the generation without waiting for old network work")
+    @MainActor
+    func appModelManualRefreshDuringStartup() async throws {
+        let gate = FavoriteStartupResolverGate()
+        let harness = FavoriteSessionOperationHarness([
+            "old": [.gatedSuccess("1")],
+            "new": [.success("2")]
+        ])
+        let session = makeSession(harness: harness, foregroundBudget: .seconds(60), resolver: FavoritePluginIDResolver(batch: { rooms in
+            await gate.resolve(rooms)
+        }))
+        let model = AppFavoriteModel(refreshSession: session)
+        let oldRoom = sessionRoom(plugin: "source-a", id: "old")
+        let newRoom = sessionRoom(plugin: "source-a", id: "new")
+        model.roomList = [oldRoom, newRoom]
+
+        let automatic = Task {
+            await model.refreshStatesAndApply(members: [oldRoom], trigger: .automatic)
+        }
+        await gate.waitUntilEntered()
+        let (entered, signal) = AsyncStream.makeStream(of: Void.self)
+        let manual = Task { @MainActor in
+            signal.yield(())
+            signal.finish()
+            await model.refreshStatesAndApply(members: [newRoom], trigger: .manual)
+        }
+        for await _ in entered { break }
+        await gate.release()
+
+        // The old operation remains gated. The replacement must complete anyway.
+        try await waitUntil { model.roomList.first(where: { $0.roomId == "new" })?.liveState == "2" }
+        await session.cancel()
+        await harness.release("old")
+        await automatic.value
+        await manual.value
+        #expect(await gate.calls == 2)
+        #expect(await harness.callCount("new") == 1)
+        #expect(model.roomList.first(where: { $0.roomId == "old" })?.liveState == "0")
+    }
+
+    @Test("public refresh entry points merge a burst before loading members", arguments: [false, true])
+    @MainActor
+    func publicRefreshBurst(manual: Bool) async throws {
+        let gate = FavoriteStartupResolverGate()
+        let harness = FavoriteSessionOperationHarness(defaultBehavior: .success("1"))
+        let session = makeSession(harness: harness, resolver: FavoritePluginIDResolver(batch: { await gate.resolve($0) }))
+        let model = AppFavoriteModel(refreshSession: session)
+        let originalCloudSetting = model.favoriteICloudSyncEnabled
+        model.favoriteICloudSyncEnabled = false
+        defer { model.favoriteICloudSyncEnabled = originalCloudSetting }
+        model.roomList = [sessionRoom(plugin: "source-a", id: "r1")]
+        let (entered, signal) = AsyncStream.makeStream(of: Void.self)
+        let callers = (0..<24).map { _ in
+            Task { @MainActor in
+                signal.yield(())
+                if manual {
+                    await model.pullToRefresh()
+                } else {
+                    await model.syncWithActor()
+                }
+            }
+        }
+        var entries = 0
+        for await _ in entered {
+            entries += 1
+            if entries == callers.count { break }
+        }
+        signal.finish()
+        await gate.waitUntilEntered()
+        await gate.release()
+        for caller in callers { await caller.value }
+        #expect(await gate.calls == 1)
+        #expect(await harness.callCount("r1") == 1)
+    }
+
+    @Test("automatic refresh stays shared after foreground finishes and after completion")
+    @MainActor
+    func automaticRefreshForegroundAndCompletion() async throws {
+        let harness = FavoriteSessionOperationHarness(defaultBehavior: .gatedSuccess("1"))
+        let session = makeSession(harness: harness, foregroundBudget: .milliseconds(10))
+        let model = AppFavoriteModel(refreshSession: session)
+        let room = sessionRoom(plugin: "source-a", id: "r1")
+        model.roomList = [room]
+        await model.refreshStatesAndApply(members: [room], trigger: .automatic)
+        await harness.waitUntilStarted(1)
+        for _ in 0..<24 {
+            await model.refreshStatesAndApply(members: [room], trigger: .automatic)
+        }
+        #expect(await harness.callCount("r1") == 1)
+        #expect(await harness.wasCancelled("r1") == false)
+        await harness.release("r1")
+        try await waitUntil { model.lastFavoriteRefreshSummary != nil && !model.hasActiveFavoriteRefresh }
+        await model.refreshStatesAndApply(members: [room], trigger: .automatic)
+        #expect(await harness.callCount("r1") == 1)
+        #expect(!model.shouldSync())
+    }
+
+    @Test("freshness permits manual refresh, expiry and changed membership")
+    @MainActor
+    func automaticRefreshFreshness() async throws {
+        var now = Date(timeIntervalSince1970: 1_000)
+        let harness = FavoriteSessionOperationHarness(defaultBehavior: .success("1"))
+        let model = AppFavoriteModel(refreshSession: makeSession(harness: harness), refreshNow: { now })
+        let room = sessionRoom(plugin: "source-a", id: "r1")
+        model.roomList = [room]
+        await model.refreshStatesAndApply(members: [room], trigger: .automatic)
+        try await waitUntil { model.lastFavoriteRefreshSummary != nil }
+        let firstGeneration = model.currentFavoriteGenerationID
+        now.addTimeInterval(60)
+        await model.refreshStatesAndApply(members: [room], trigger: .automatic)
+        #expect(model.currentFavoriteGenerationID == firstGeneration)
+        #expect(await harness.callCount("r1") == 1)
+        await model.refreshStatesAndApply(members: [room], trigger: .manual)
+        try await waitUntil { model.lastFavoriteRefreshSummary?.generationID != firstGeneration && !model.hasActiveFavoriteRefresh }
+        #expect(await harness.callCount("r1") == 2)
+        now.addTimeInterval(61)
+        #expect(model.shouldSync())
+        await model.refreshStatesAndApply(members: [room], trigger: .automatic)
+        #expect(await harness.callCount("r1") == 3)
+        let added = sessionRoom(plugin: "source-a", id: "r2")
+        model.roomList = [room, added]
+        #expect(model.shouldSync())
+        await model.refreshStatesAndApply(members: [room, added], trigger: .automatic)
+        #expect(await harness.callCount("r2") == 1)
+    }
+
+    @Test("identical catalog notifications are ignored and an actual plugin update refreshes")
+    @MainActor
+    func automaticRefreshCatalogChanges() async throws {
+        let harness = FavoriteSessionOperationHarness(defaultBehavior: .success("1"))
+        let model = AppFavoriteModel(refreshSession: makeSession(harness: harness))
+        let room = sessionRoom(plugin: "source-a", id: "r1")
+        model.roomList = [room]
+        func catalog(_ version: String) -> [String: SandboxPluginMetadata] {
+            ["source-a": SandboxPluginMetadata(pluginId: "source-a", version: version, displayName: nil, liveTypes: ["fixture-source"])]
+        }
+        #expect(!model.updateFavoriteRefreshCatalog(catalog("1.0.0")))
+        await model.refreshStatesAndApply(members: [room], trigger: .automatic)
+        try await waitUntil { model.lastFavoriteRefreshSummary != nil }
+        #expect(!model.updateFavoriteRefreshCatalog(catalog("1.0.0")))
+        await model.refreshStatesAndApply(members: [room], trigger: .automatic)
+        #expect(await harness.callCount("r1") == 1)
+        #expect(model.updateFavoriteRefreshCatalog(catalog("1.1.0")))
+        #expect(model.shouldSync())
+        await model.refreshStatesAndApply(members: [room], trigger: .automatic)
+        #expect(await harness.callCount("r1") == 2)
     }
 
     @Test("terminating the sole event consumer cancels session-owned work")
@@ -631,13 +818,42 @@ private actor FavoriteBatchResolverCounter {
     }
 }
 
+private actor FavoriteStartupResolverGate {
+    private(set) var calls = 0
+    private var releaseContinuation: CheckedContinuation<Void, Never>?
+    private var enteredContinuation: CheckedContinuation<Void, Never>?
+
+    func resolve(_ rooms: [LiveModel]) async -> [FavoriteResolvedPlugin] {
+        calls += 1
+        if calls == 1 {
+            await withCheckedContinuation { continuation in
+                releaseContinuation = continuation
+                enteredContinuation?.resume()
+                enteredContinuation = nil
+            }
+        }
+        return rooms.map { FavoriteResolvedPlugin(pluginId: $0.userName) }
+    }
+
+    func waitUntilEntered() async {
+        if calls > 0 { return }
+        await withCheckedContinuation { enteredContinuation = $0 }
+    }
+
+    func release() {
+        releaseContinuation?.resume()
+        releaseContinuation = nil
+    }
+}
+
 private func makeSession(
     harness: FavoriteSessionOperationHarness,
     foregroundBudget: Duration = .seconds(1),
     globalLimit: Int = 8,
     pluginLimit: Int = 3,
     path: FavoriteNetworkPathStatus = .satisfied,
-    invalidator: FavoriteHTTPFailureCacheInvalidator = .none
+    invalidator: FavoriteHTTPFailureCacheInvalidator = .none,
+    resolver: FavoritePluginIDResolver = FavoritePluginIDResolver { $0.userName }
 ) -> FavoriteRefreshSession {
     FavoriteRefreshSession(
         operation: FavoriteRefreshOperation { room, pluginId, allowRetry in
@@ -648,7 +864,7 @@ private func makeSession(
             )
         },
         pathObserver: FixedFavoritePath(status: path),
-        pluginResolver: FavoritePluginIDResolver { $0.userName },
+        pluginResolver: resolver,
         failureCacheInvalidator: invalidator,
         policy: FavoriteRefreshRequestPolicy(
             foregroundBudget: foregroundBudget,

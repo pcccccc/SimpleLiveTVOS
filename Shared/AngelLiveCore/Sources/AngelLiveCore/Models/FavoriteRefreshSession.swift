@@ -333,7 +333,7 @@ public actor FavoriteRefreshSession {
         active?.runTask = runTask
 
         Logger.debug(
-            "[FavoriteRefresh] generation=\(generationID) rooms=\(members.count) plugins=\(progress.count) trigger=\(trigger)",
+            "[FavoriteRefresh] generation=\(generationID) rooms=\(members.count) plugins=\(progress.count) trigger=\(trigger) globalLimit=\(policy.maximumConcurrentRequests) perPluginLimit=\(policy.maximumConcurrentRequestsPerPlugin)",
             category: .favorite
         )
 

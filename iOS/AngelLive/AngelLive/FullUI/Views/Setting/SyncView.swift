@@ -195,7 +195,7 @@ struct SyncView: View {
                 set: { newValue in
                     favoriteModel.favoriteICloudSyncEnabled = newValue
                     if newValue {
-                        Task { await favoriteModel.syncWithActor() }
+                        Task { await favoriteModel.pullToRefresh() }
                     }
                 }
             )) {

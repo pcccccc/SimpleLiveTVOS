@@ -321,7 +321,7 @@ private extension HomeView {
             installedPluginIds: pluginAvailability.installedPluginIds,
             availabilityConfirmed: pluginAvailability.hasCheckedAvailability
         )
-        await favoriteModel.syncWithActor()
+        await favoriteModel.pullToRefresh()
     }
 }
 

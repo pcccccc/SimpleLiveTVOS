@@ -522,7 +522,7 @@ struct PlayerContentView: View {
                 subtitleDataSource: nil,
                 liftCycleBlock: { coordinator, isDisappear in
                     if !isDisappear {
-                        viewModel.setPlayerDelegate(playerCoordinator: coordinator)
+                        viewModel.attachPlayerLayer(coordinator.playerLayer)
                     }
                 },
                 showsControlLayer: false

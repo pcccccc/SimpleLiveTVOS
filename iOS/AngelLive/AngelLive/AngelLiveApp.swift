@@ -29,10 +29,12 @@ struct AngelLiveApp: App {
 
     // 首次启动管理器
     @State private var welcomeManager = WelcomeManager()
+    @State private var favoriteViewModel = AppFavoriteModel()
 
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environment(favoriteViewModel)
                 .developerModeConsoleOverlay()
                 .environment(playerManager)
                 .environment(welcomeManager)

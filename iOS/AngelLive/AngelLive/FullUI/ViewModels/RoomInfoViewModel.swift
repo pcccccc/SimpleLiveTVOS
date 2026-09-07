@@ -455,6 +455,30 @@ final class RoomInfoViewModel {
     ) {
         logSelectedStreamBeforePlayback(url, source: source, debugContext: debugContext)
         if currentPlayURL == url {
+            #if canImport(KSPlayer)
+            if !usesVLCKernel {
+                // A repeated URL is a reconnect request, not a view identity change.
+                // If the surface has not attached yet, its initial prepare uses this URL.
+                if let layer = watchedPlayerLayer, layer.url == url {
+                    let preferredPlayerType = playerOption.playerTypes.first ?? KSAVPlayer.self
+                    if type(of: layer.player) == preferredPlayerType {
+                        // replace creates a new media item; reopening the old item immediately
+                        // after reset would race its asynchronous close operation.
+                        layer.player.replace(url: url, options: playerOption)
+                        if let complexLayer = layer as? KSComplexPlayerLayer {
+                            layer.player.pipController?.setValue(complexLayer, forKey: "delegate")
+                        }
+                        layer.prepareToPlay()
+                        if playerOption.isAutoPlay {
+                            layer.play()
+                        }
+                    } else {
+                        layer.set(url: url, options: playerOption)
+                    }
+                }
+                return
+            }
+            #endif
             currentPlayURL = nil
             Task { @MainActor [weak self] in
                 await Task.yield()
@@ -607,19 +631,9 @@ final class RoomInfoViewModel {
     }
 
     @MainActor
-    func setPlayerDelegate(playerCoordinator: KSVideoPlayer.Coordinator) {
+    func attachPlayerLayer(_ layer: KSPlayerLayer?) {
         guard !usesVLCKernel else { return }
-        // Keep KSVideoPlayer.Coordinator as the layer delegate. Its callbacks are
-        // KSPlayer's supported fan-out points for business observers.
-        playerCoordinator.onStateChanged = { [weak self] layer, state in
-            self?.player(layer: layer, state: state)
-        }
-        playerCoordinator.onFinish = { [weak self] layer, error in
-            self?.player(layer: layer, finish: error)
-        }
-        // 始终让 watchedPlayerLayer 指向当前活跃 layer,供协调器 sample provider 采样。
-        // VLC 内核时 dynamicInfo 不归 KSPlayer 管,上面 guard 已跳过。
-        watchedPlayerLayer = playerCoordinator.playerLayer
+        watchedPlayerLayer = layer
     }
 
     // MARK: - 弹幕相关方法
@@ -897,6 +911,7 @@ extension RoomInfoViewModel: WebSocketConnectionDelegate {
 // MARK: - KSPlayerLayerDelegate
 extension RoomInfoViewModel: KSPlayerLayerDelegate {
     func player(layer: KSPlayer.KSPlayerLayer, state: KSPlayer.KSPlayerState) {
+        attachPlayerLayer(layer)
         isPlaying = layer.player.isPlaying
         let engine = mapEngineState(state)
         engineState = engine

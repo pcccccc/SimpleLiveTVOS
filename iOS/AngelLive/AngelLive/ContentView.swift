@@ -54,7 +54,7 @@ struct ContentView: View {
 
     // 创建全局 ViewModels
     @State private var platformViewModel = PlatformViewModel()
-    @State private var favoriteViewModel = AppFavoriteModel()
+    @Environment(AppFavoriteModel.self) private var favoriteViewModel
     @State private var searchViewModel = SearchViewModel()
     @State private var historyViewModel = HistoryModel()
 
@@ -292,6 +292,10 @@ struct ContentView: View {
         // 原地升级不会改变 pluginId 列表。以目录修订号重建平台元数据和
         // homeFeed 能力，避免长按 Tab 菜单继续使用更新前的能力快照。
         .onChange(of: pluginAvailability.catalogRevision) { _, _ in
+            let catalogChanged = favoriteViewModel.updateFavoriteRefreshCatalog(SandboxPluginCatalog.installedPluginMap())
+            if catalogChanged, pluginAvailability.hasAvailablePlugins {
+                Task { await favoriteViewModel.syncWithActor() }
+            }
             platformViewModel.refreshPlatforms(
                 installedPluginIds: pluginAvailability.installedPluginIds
             )
@@ -707,4 +711,5 @@ private struct PlatformDetailTabContainer: View {
 
 #Preview {
     ContentView()
+        .environment(AppFavoriteModel())
 }

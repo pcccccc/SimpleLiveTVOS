@@ -260,6 +260,10 @@ struct ContentView: View {
             }
         }
         .onChange(of: pluginAvailability.catalogRevision) { _, _ in
+            let catalogChanged = favoriteViewModel.updateFavoriteRefreshCatalog(SandboxPluginCatalog.installedPluginMap())
+            if catalogChanged, pluginAvailability.hasAvailablePlugins {
+                Task { await favoriteViewModel.syncWithActor() }
+            }
             platformViewModel.refreshPlatforms(
                 installedPluginIds: pluginAvailability.installedPluginIds
             )

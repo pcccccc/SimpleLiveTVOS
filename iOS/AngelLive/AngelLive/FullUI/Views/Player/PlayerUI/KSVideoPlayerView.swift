@@ -60,7 +60,19 @@ public struct KSVideoPlayerView: View {
     public var body: some View {
         if let url = model.url {
             ZStack(alignment: .topLeading) {
-                KSCorePlayerView(config: model.config, url: url, options: model.options, title: $model.title, subtitleDataSource: subtitleDataSource)
+                KSCorePlayerView(
+                    config: model.config,
+                    url: url,
+                    options: model.options,
+                    title: $model.title,
+                    subtitleDataSource: subtitleDataSource,
+                    onPlaybackStateChanged: { [weak viewModel] layer, state in
+                        viewModel?.player(layer: layer, state: state)
+                    },
+                    onPlaybackFinished: { [weak viewModel] layer, error in
+                        viewModel?.player(layer: layer, finish: error)
+                    }
+                )
                     .onAppear {
                         liftCycleBlock?(model.config, false)
                     }
