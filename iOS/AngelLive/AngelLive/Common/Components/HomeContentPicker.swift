@@ -7,7 +7,15 @@
 
 import AngelLiveCore
 import SwiftUI
+import TipKit
 import UIKit
+
+private struct HomeTabSwitchTip: Tip {
+    var title: Text { Text("长按切换首页内容") }
+    var message: Text? { Text("长按这个标签，可以切换推荐、收藏或内容源。") }
+    var image: Image? { Image(systemName: "hand.tap") }
+    var options: [any TipOption] { MaxDisplayCount(1) }
+}
 
 /// 找到真实首页 Tab item view 并挂系统 `UIContextMenuInteraction`。
 /// SwiftUI 的 `TabContent.contextMenu` 在部分底部 TabBar 形态不会把交互安装到
@@ -17,6 +25,7 @@ struct HomeTabContextMenuInstaller: UIViewRepresentable {
     let recommendationsAvailable: Bool
     let selectedPreference: HomePagePreference
     let selectedPluginId: String
+    let allowsTipPresentation: Bool
     let onSelectRecommendations: () -> Void
     let onSelectFavorites: () -> Void
     let onSelectPlatform: (HomePlatformOption) -> Void
@@ -45,6 +54,7 @@ struct HomeTabContextMenuInstaller: UIViewRepresentable {
             recommendationsAvailable: recommendationsAvailable,
             selectedPreference: selectedPreference,
             selectedPluginId: selectedPluginId,
+            allowsTipPresentation: allowsTipPresentation,
             onSelectRecommendations: onSelectRecommendations,
             onSelectFavorites: onSelectFavorites,
             onSelectPlatform: onSelectPlatform
@@ -79,13 +89,25 @@ extension HomeTabContextMenuInstaller {
         let recommendationsAvailable: Bool
         let selectedPreference: HomePagePreference
         let selectedPluginId: String
+        let allowsTipPresentation: Bool
         let onSelectRecommendations: () -> Void
         let onSelectFavorites: () -> Void
         let onSelectPlatform: (HomePlatformOption) -> Void
     }
 
+    @MainActor
     final class Coordinator: NSObject, UIContextMenuInteractionDelegate {
         private static let menuConfigurationIdentifier = NSString(string: "home-tab-menu")
+        // This installer is only mounted by the FullUI iPhone tab bar.
+        private static let tipsConfigured: Bool = {
+            do {
+                try Tips.configure()
+                return true
+            } catch {
+                Logger.warning("首页操作提示初始化失败", category: .ui)
+                return false
+            }
+        }()
 
         var configuration: Configuration?
 
@@ -93,8 +115,16 @@ extension HomeTabContextMenuInstaller {
         private weak var installedItemView: UIView?
         private var interaction: UIContextMenuInteraction?
         private var pendingInstallations: [DispatchWorkItem] = []
+        private let homeTip = HomeTabSwitchTip()
+        private var tipObservationTask: Task<Void, Never>?
+        private weak var tipPopover: TipUIPopoverViewController?
+        private weak var tabBarController: UITabBarController?
+        private var tipShouldDisplay = false
 
         func scheduleInstallation(from hostingView: UIView) {
+            if configuration?.allowsTipPresentation != true {
+                dismissTip()
+            }
             pendingInstallations.forEach { $0.cancel() }
             pendingInstallations.removeAll()
 
@@ -118,17 +148,27 @@ extension HomeTabContextMenuInstaller {
                   Self.isActuallyVisible(itemView)
             else { return }
 
-            guard installedItemView !== itemView else { return }
+            self.tabBarController = tabBarController
+            if installedItemView === itemView {
+                updateTipPresentation()
+                return
+            }
+            dismissTip()
             removeInteraction()
 
             let interaction = UIContextMenuInteraction(delegate: self)
             itemView.addInteraction(interaction)
             installedItemView = itemView
             self.interaction = interaction
+            observeTipIfNeeded()
+            updateTipPresentation()
         }
 
         func deactivate() {
             isActive = false
+            tipObservationTask?.cancel()
+            tipObservationTask = nil
+            dismissTip()
             pendingInstallations.forEach { $0.cancel() }
             pendingInstallations.removeAll()
             removeInteraction()
@@ -140,6 +180,8 @@ extension HomeTabContextMenuInstaller {
             configurationForMenuAtLocation location: CGPoint
         ) -> UIContextMenuConfiguration? {
             guard configuration != nil else { return nil }
+            homeTip.invalidate(reason: .actionPerformed)
+            dismissTip()
             return UIContextMenuConfiguration(
                 identifier: Self.menuConfigurationIdentifier,
                 previewProvider: nil
@@ -206,6 +248,48 @@ extension HomeTabContextMenuInstaller {
             }
 
             return UIMenu(title: "", children: sections)
+        }
+
+        private func observeTipIfNeeded() {
+            guard tipObservationTask == nil, Self.tipsConfigured else { return }
+            let tip = homeTip
+            tipObservationTask = Task { @MainActor [weak self] in
+                for await shouldDisplay in tip.shouldDisplayUpdates {
+                    guard !Task.isCancelled, let self else { return }
+                    self.tipShouldDisplay = shouldDisplay
+                    self.updateTipPresentation()
+                }
+            }
+        }
+
+        private func updateTipPresentation() {
+            guard isActive, tipShouldDisplay,
+                  let configuration, configuration.allowsTipPresentation,
+                  configuration.recommendationsAvailable, !configuration.options.isEmpty,
+                  UIApplication.shared.applicationState == .active,
+                  let itemView = installedItemView, Self.isActuallyVisible(itemView),
+                  let tabBarController
+            else {
+                dismissTip()
+                return
+            }
+            guard tipPopover == nil else { return }
+
+            // Do not compete with onboarding, navigation, or another presentation.
+            var presenter: UIViewController? = tabBarController
+            while let current = presenter {
+                guard current.presentedViewController == nil else { return }
+                presenter = current.parent
+            }
+            let popover = TipUIPopoverViewController(homeTip, sourceItem: itemView)
+            popover.popoverPresentationController?.permittedArrowDirections = .down
+            tipPopover = popover
+            tabBarController.present(popover, animated: !UIAccessibility.isReduceMotionEnabled)
+        }
+
+        private func dismissTip() {
+            tipPopover?.dismiss(animated: false)
+            tipPopover = nil
         }
 
         /// Liquid Glass 的选中 Tab 已经自带抬升反馈。系统再快照整个 item view

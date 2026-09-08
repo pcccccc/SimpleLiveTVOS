@@ -16,6 +16,7 @@ struct HomeView: View {
     @Environment(AppFavoriteModel.self) private var favoriteModel
     @Environment(PluginAvailabilityService.self) private var pluginAvailability
     @Environment(\.presentToast) private var presentToast
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @AppStorage(HomePagePreference.selectedPluginStorageKey, store: .shared)
     private var selectedPluginId = ""
 
@@ -114,6 +115,14 @@ private extension HomeView {
     func homeScrollView(containerWidth: CGFloat, topSafeAreaInset: CGFloat) -> some View {
         let featuredCardWidth = featuredRoomCardWidth(for: containerWidth)
         let compactCardWidth = compactRoomCardWidth(for: containerWidth)
+        // Use the selection/catalog, not the number of completed requests, so
+        // a slow source cannot switch the aggregate feed between rails and grid.
+        let showsSingleSource = viewModel.selectedPluginId != nil || viewModel.platformOptions.count == 1
+        let gridColumnCount = showsSingleSource ? homeGridColumnCount(for: containerWidth) : nil
+        let pluginCardWidth = gridColumnCount.map { columns in
+            (containerWidth - AppConstants.Spacing.xl * 2
+                - AppConstants.Spacing.md * CGFloat(columns - 1)) / CGFloat(columns)
+        } ?? featuredCardWidth
         let hasConfiguredHomeSources = !pluginAvailability.installedPluginIds.isEmpty
         let isAwaitingFirstContent = viewModel.bannerEntries.isEmpty
             && viewModel.sectionEntries.isEmpty
@@ -169,7 +178,8 @@ private extension HomeView {
                    !firstPluginSection.section.items.isEmpty {
                     HomePluginRoomSection(
                         entry: firstPluginSection,
-                        cardWidth: featuredCardWidth,
+                        cardWidth: pluginCardWidth,
+                        gridColumnCount: gridColumnCount,
                         namespace: roomTransitionNamespace,
                         onSelect: { room, rooms in
                             openRoom(room, rooms: rooms, mode: .direct)
@@ -191,7 +201,8 @@ private extension HomeView {
                 ForEach(viewModel.sectionEntries.dropFirst()) { entry in
                     HomePluginRoomSection(
                         entry: entry,
-                        cardWidth: featuredCardWidth,
+                        cardWidth: pluginCardWidth,
+                        gridColumnCount: gridColumnCount,
                         namespace: roomTransitionNamespace,
                         onSelect: { room, rooms in
                             openRoom(room, rooms: rooms, mode: .direct)
@@ -255,6 +266,11 @@ private extension HomeView {
 
     func featuredRoomCardWidth(for containerWidth: CGFloat) -> CGFloat {
         min(max((containerWidth - 52) / 1.72, 164), 300)
+    }
+
+    func homeGridColumnCount(for containerWidth: CGFloat) -> Int {
+        if dynamicTypeSize.isAccessibilitySize || containerWidth < 350 { return 1 }
+        return max(2, Int(containerWidth / 250))
     }
 
     func compactRoomCardWidth(for containerWidth: CGFloat) -> CGFloat {
@@ -530,12 +546,12 @@ private extension View {
 private struct HomeRoomPresentation: Identifiable {
     let id: String
     let room: LiveModel
-    let detail: String
+    let reason: String?
 
-    init(id: String? = nil, room: LiveModel, detail: String) {
+    init(id: String? = nil, room: LiveModel, reason: String? = nil) {
         self.id = id ?? room.id
         self.room = room
-        self.detail = detail
+        self.reason = reason
     }
 }
 
@@ -547,10 +563,10 @@ private struct HomeFavoriteSection: View {
     let onSelect: (LiveModel, [LiveModel]) -> Void
 
     var body: some View {
-        HomeHorizontalRoomSection(
+        HomeRoomSection(
             title: "我的收藏",
             subtitle: isRefreshing ? "状态更新中" : nil,
-            items: rooms.map { HomeRoomPresentation(room: $0, detail: $0.userName) },
+            items: rooms.map { HomeRoomPresentation(room: $0) },
             cardWidth: cardWidth,
             emptyMessage: "收藏常看的直播间，之后可以从这里快速进入",
             emptySystemImage: "heart",
@@ -571,6 +587,7 @@ private struct HomeFavoriteSection: View {
 private struct HomePluginRoomSection: View {
     let entry: HomeSectionEntry
     let cardWidth: CGFloat
+    let gridColumnCount: Int?
     let namespace: Namespace.ID
     let onSelect: (LiveModel, [LiveModel]) -> Void
 
@@ -600,17 +617,18 @@ private struct HomePluginRoomSection: View {
     }
 
     var body: some View {
-        HomeHorizontalRoomSection(
+        HomeRoomSection(
             title: entry.section.title,
             subtitle: subtitle,
             items: entry.section.items.map {
                 HomeRoomPresentation(
                     id: $0.id,
                     room: $0.room,
-                    detail: $0.reason ?? $0.room.userName
+                    reason: $0.reason
                 )
             },
             cardWidth: cardWidth,
+            gridColumnCount: gridColumnCount,
             trailing: {
                 if let route {
                     NavigationLink(value: route) {
@@ -624,11 +642,15 @@ private struct HomePluginRoomSection: View {
     }
 }
 
-private struct HomeHorizontalRoomSection<Trailing: View>: View {
+private struct HomeRoomSection<Trailing: View>: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @State private var measuredRailHeight: CGFloat = 0
+
     let title: String
     let subtitle: String?
     let items: [HomeRoomPresentation]
     let cardWidth: CGFloat
+    let gridColumnCount: Int?
     let emptyMessage: String?
     let emptySystemImage: String
     let trailing: Trailing
@@ -640,6 +662,7 @@ private struct HomeHorizontalRoomSection<Trailing: View>: View {
         subtitle: String?,
         items: [HomeRoomPresentation],
         cardWidth: CGFloat,
+        gridColumnCount: Int? = nil,
         emptyMessage: String? = nil,
         emptySystemImage: String = "rectangle.stack",
         @ViewBuilder trailing: () -> Trailing,
@@ -650,6 +673,7 @@ private struct HomeHorizontalRoomSection<Trailing: View>: View {
         self.subtitle = subtitle
         self.items = items
         self.cardWidth = cardWidth
+        self.gridColumnCount = gridColumnCount
         self.emptyMessage = emptyMessage
         self.emptySystemImage = emptySystemImage
         self.trailing = trailing()
@@ -665,6 +689,20 @@ private struct HomeHorizontalRoomSection<Trailing: View>: View {
 
             if items.isEmpty, let emptyMessage {
                 HomeEmptyRail(message: emptyMessage, systemImage: emptySystemImage)
+            } else if let gridColumnCount {
+                LazyVGrid(
+                    columns: Array(
+                        repeating: GridItem(.fixed(cardWidth), spacing: AppConstants.Spacing.md, alignment: .top),
+                        count: gridColumnCount
+                    ),
+                    alignment: .leading,
+                    spacing: AppConstants.Spacing.xl
+                ) {
+                    ForEach(items) { item in
+                        roomButton(for: item)
+                    }
+                }
+                .padding(.horizontal, AppConstants.Spacing.xl)
             } else {
                 roomScroll
             }
@@ -675,26 +713,42 @@ private struct HomeHorizontalRoomSection<Trailing: View>: View {
         ScrollView(.horizontal) {
             LazyHStack(alignment: .top, spacing: AppConstants.Spacing.md) {
                 ForEach(items) { item in
-                    Button {
-                        onSelect(item.room)
-                    } label: {
-                        LiveRoomCard(
-                            room: item.room,
-                            width: cardWidth,
-                            liveCheckMode: .none,
-                            subtitle: item.detail,
-                            disableTapGesture: true
-                        )
-                        .environment(\.roomTransitionNamespace, namespace)
-                    }
-                    .buttonStyle(HomeCardButtonStyle())
-                    .accessibilityLabel("\(item.room.roomTitle)，\(item.room.userName)")
-                    .accessibilityHint("打开播放页")
+                    roomButton(for: item)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+                            // Lazy horizontal layout can size itself from a short
+                            // first card. Keep room for the tallest measured card
+                            // so longer titles and streamer names remain visible.
+                            measuredRailHeight = max(measuredRailHeight, height)
+                        }
                 }
             }
             .padding(.horizontal, AppConstants.Spacing.xl)
         }
+        .frame(minHeight: measuredRailHeight)
         .scrollIndicators(.hidden)
+        .onChange(of: cardWidth) { _, _ in measuredRailHeight = 0 }
+        .onChange(of: dynamicTypeSize) { _, _ in measuredRailHeight = 0 }
+        .onChange(of: items.map(\.id)) { _, _ in measuredRailHeight = 0 }
+    }
+
+    private func roomButton(for item: HomeRoomPresentation) -> some View {
+        Button {
+            onSelect(item.room)
+        } label: {
+            LiveRoomCard(
+                room: item.room,
+                width: cardWidth,
+                liveCheckMode: .none,
+                presentation: .home,
+                recommendationReason: item.reason,
+                disableTapGesture: true
+            )
+            .environment(\.roomTransitionNamespace, namespace)
+        }
+        .buttonStyle(HomeCardButtonStyle())
+        .accessibilityLabel("\(item.room.roomTitle)，\(item.room.userName)")
+        .accessibilityHint("打开播放页")
     }
 }
 
@@ -782,11 +836,14 @@ private struct HomeHeroCarousel: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
-    @State private var selectedPageID: String?
-    @State private var loopCorrectionTask: Task<Void, Never>?
+    @State private var selectedPageID: Int? = 1
+    @State private var currentBannerID: String?
+    @State private var isScrolling = false
+    @State private var needsLayoutCorrection = false
     @State private var layoutCorrectionTask: Task<Void, Never>?
     @State private var layoutGeneration = 0
     @State private var autoplayProgress: CGFloat = 1
+    @State private var pageIndicatorWidth: CGFloat = 72
 
     private let pageInset: CGFloat = 0
     private let cardSpacing: CGFloat = 0
@@ -809,14 +866,18 @@ private struct HomeHeroCarousel: View {
     }
 
     private var loopPages: [HomeHeroLoopPage] {
-        guard entries.count > 1,
-              let first = entries.first,
-              let last = entries.last else {
-            return entries.map(HomeHeroLoopPage.real)
+        guard !entries.isEmpty else { return [] }
+        let index = entries.firstIndex { $0.id == currentBannerID } ?? 0
+        guard entries.count > 1 else {
+            return [HomeHeroLoopPage(id: 1, entry: entries[index])]
         }
-        return [HomeHeroLoopPage.leadingClone(last)]
-            + entries.map(HomeHeroLoopPage.real)
-            + [HomeHeroLoopPage.trailingClone(first)]
+        // Keep three fully laid-out pages. Every entry remains reachable;
+        // only the rendering window moves after scrolling has stopped.
+        return [
+            HomeHeroLoopPage(id: 0, entry: entries[(index + entries.count - 1) % entries.count]),
+            HomeHeroLoopPage(id: 1, entry: entries[index]),
+            HomeHeroLoopPage(id: 2, entry: entries[(index + 1) % entries.count])
+        ]
     }
 
     private var selectedBannerID: String? {
@@ -830,19 +891,19 @@ private struct HomeHeroCarousel: View {
 
         ZStack(alignment: .bottomTrailing) {
             ScrollView(.horizontal) {
-                LazyHStack(spacing: cardSpacing) {
+                HStack(spacing: cardSpacing) {
                     ForEach(loopPages) { page in
                         heroPage(for: page.entry)
-                            // Bind every page to the horizontal scroll
-                            // viewport. Explicit widths can leave the content
-                            // offset expressed in the pre-rotation page size,
-                            // which strands iPad between two pages.
-                            .containerRelativeFrame(.horizontal)
-                            .frame(height: cardHeight)
+                            .id(page.entry.id)
+                            .frame(width: viewportWidth, height: cardHeight)
                             .id(page.id)
                     }
                 }
                 .scrollTargetLayout()
+                .background {
+                    HomeHeroScrollActivityProbe(onChange: scrollingChanged)
+                        .frame(width: 0, height: 0)
+                }
             }
             .scrollPosition(id: $selectedPageID, anchor: .center)
             .scrollTargetBehavior(.paging)
@@ -856,6 +917,7 @@ private struct HomeHeroCarousel: View {
                     selectedID: selectedBannerID,
                     progress: autoplayProgress
                 )
+                    .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { pageIndicatorWidth = $0 }
                     .padding(.trailing, AppConstants.Spacing.xxl)
                     .padding(.bottom, AppConstants.Spacing.xxl)
             }
@@ -874,8 +936,8 @@ private struct HomeHeroCarousel: View {
         )
         .onAppear(perform: normalizeSelection)
         .onChange(of: entries.map(\.id)) { _, _ in normalizeSelection() }
-        .onChange(of: selectedPageID) { _, newValue in
-            scheduleLoopCorrection(for: newValue)
+        .onChange(of: selectedPageID) { _, _ in
+            settleSelectionIfNeeded()
         }
         .onChange(of: viewportSize) { oldSize, newSize in
             guard abs(oldSize.width - newSize.width) > 0.5
@@ -884,7 +946,6 @@ private struct HomeHeroCarousel: View {
             scheduleLayoutCorrection()
         }
         .onDisappear {
-            loopCorrectionTask?.cancel()
             layoutCorrectionTask?.cancel()
         }
         .task(id: autoplayTaskID) {
@@ -893,56 +954,49 @@ private struct HomeHeroCarousel: View {
     }
 
     private var autoplayTaskID: String {
-        "\(entries.map(\.id).joined(separator: "|"))::\(selectedBannerID ?? "")::\(scenePhase)::\(reduceMotion)::\(layoutGeneration)"
+        "\(entries.map(\.id).joined(separator: "|"))::\(currentBannerID ?? "")::\(scenePhase)::\(reduceMotion)::\(isScrolling)::\(needsLayoutCorrection)::\(layoutGeneration)"
     }
 
     private func normalizeSelection() {
-        loopCorrectionTask?.cancel()
-        guard !entries.isEmpty else {
-            selectedPageID = nil
-            return
-        }
-
-        if let selectedBannerID,
-           entries.contains(where: { $0.id == selectedBannerID }) {
-            selectedPageID = HomeHeroLoopPage.realID(for: selectedBannerID)
-        } else {
-            selectedPageID = HomeHeroLoopPage.realID(for: entries[0].id)
+        guard !entries.contains(where: { $0.id == currentBannerID }) else { return }
+        layoutCorrectionTask?.cancel()
+        var transaction = Transaction(animation: nil)
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            currentBannerID = entries.first?.id
+            selectedPageID = entries.isEmpty ? nil : 1
         }
     }
 
-    private func scheduleLoopCorrection(for pageID: String?) {
-        loopCorrectionTask?.cancel()
-        guard entries.count > 1, let pageID else { return }
-
-        let destinationID: String?
-        if pageID == HomeHeroLoopPage.leadingCloneID(for: entries.last?.id ?? "") {
-            destinationID = entries.last.map { HomeHeroLoopPage.realID(for: $0.id) }
-        } else if pageID == HomeHeroLoopPage.trailingCloneID(for: entries.first?.id ?? "") {
-            destinationID = entries.first.map { HomeHeroLoopPage.realID(for: $0.id) }
+    private func scrollingChanged(_ active: Bool) {
+        isScrolling = active
+        if active {
+            layoutCorrectionTask?.cancel()
+        } else if needsLayoutCorrection {
+            scheduleLayoutCorrection()
         } else {
-            destinationID = nil
+            settleSelectionIfNeeded()
         }
+    }
 
-        guard let destinationID else { return }
-        loopCorrectionTask = Task { @MainActor in
-            do {
-                try await Task.sleep(for: .milliseconds(480))
-            } catch {
-                return
-            }
-            guard !Task.isCancelled else { return }
-            var transaction = Transaction()
-            transaction.disablesAnimations = true
-            withTransaction(transaction) {
-                selectedPageID = destinationID
-            }
+    private func settleSelectionIfNeeded() {
+        guard !isScrolling, !needsLayoutCorrection,
+              selectedPageID != 1,
+              let bannerID = selectedBannerID else { return }
+        // Rebase the content and offset in one nonanimated transaction. The
+        // visible banner stays identical; there is no distant lazy-stack jump.
+        var transaction = Transaction(animation: nil)
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            currentBannerID = bannerID
+            selectedPageID = 1
         }
     }
 
     private func scheduleLayoutCorrection() {
         layoutCorrectionTask?.cancel()
-        loopCorrectionTask?.cancel()
+        needsLayoutCorrection = true
+        guard !isScrolling else { return }
 
         layoutCorrectionTask = Task { @MainActor in
             // Rotation and Stage Manager resizing can publish a short series
@@ -952,12 +1006,11 @@ private struct HomeHeroCarousel: View {
             } catch {
                 return
             }
-            guard !Task.isCancelled, !entries.isEmpty else { return }
+            guard !Task.isCancelled, !isScrolling, !entries.isEmpty else { return }
 
             let bannerID = selectedBannerID.flatMap { selectedID in
                 entries.contains(where: { $0.id == selectedID }) ? selectedID : nil
             } ?? entries[0].id
-            let destinationID = HomeHeroLoopPage.realID(for: bannerID)
 
             // Clearing and restoring the scroll-position binding forces
             // SwiftUI to resolve the target using the new viewport width.
@@ -966,14 +1019,16 @@ private struct HomeHeroCarousel: View {
             var transaction = Transaction()
             transaction.disablesAnimations = true
             withTransaction(transaction) {
+                currentBannerID = bannerID
                 selectedPageID = nil
             }
             await Task.yield()
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled, !isScrolling else { return }
             var restoreTransaction = Transaction()
             restoreTransaction.disablesAnimations = true
             withTransaction(restoreTransaction) {
-                selectedPageID = destinationID
+                selectedPageID = 1
+                needsLayoutCorrection = false
                 layoutGeneration &+= 1
             }
         }
@@ -982,6 +1037,7 @@ private struct HomeHeroCarousel: View {
     @MainActor
     private func runAutoplayIfNeeded() async {
         let canAutoplay = entries.count > 1 && scenePhase == .active && !reduceMotion
+            && !isScrolling && !needsLayoutCorrection
         var resetTransaction = Transaction()
         resetTransaction.disablesAnimations = true
         withTransaction(resetTransaction) {
@@ -1001,17 +1057,13 @@ private struct HomeHeroCarousel: View {
             return
         }
 
-        guard !Task.isCancelled else { return }
-        let pages = loopPages
-        guard let currentIndex = pages.firstIndex(where: { $0.id == selectedPageID }) else {
-            normalizeSelection()
-            return
-        }
-        let nextIndex = pages.index(after: currentIndex) == pages.endIndex
-            ? pages.index(after: pages.startIndex)
-            : pages.index(after: currentIndex)
-        withAnimation(.smooth(duration: 0.45)) {
-            selectedPageID = pages[nextIndex].id
+        guard !Task.isCancelled, !isScrolling, !needsLayoutCorrection,
+              selectedPageID == 1 else { return }
+        // Mark motion before changing the binding so its onChange cannot
+        // rebase a programmatic page turn before the animation starts.
+        isScrolling = true
+        withAnimation(.timingCurve(0.76, 0, 0.24, 1, duration: 0.78)) {
+            selectedPageID = 2
         }
     }
 
@@ -1034,7 +1086,7 @@ private struct HomeHeroCarousel: View {
                     pageInset: pageInset,
                     cardSpacing: cardSpacing,
                     topSafeAreaInset: topSafeAreaInset,
-                    reservesPageIndicatorSpace: entries.count > 1
+                    pageIndicatorReservedWidth: entries.count > 1 ? pageIndicatorWidth + 16 : 0
                 )
             }
             .buttonStyle(.plain)
@@ -1055,7 +1107,7 @@ private struct HomeHeroCarousel: View {
                     pageInset: pageInset,
                     cardSpacing: cardSpacing,
                     topSafeAreaInset: topSafeAreaInset,
-                    reservesPageIndicatorSpace: entries.count > 1
+                    pageIndicatorReservedWidth: entries.count > 1 ? pageIndicatorWidth + 16 : 0
                 )
             }
             .buttonStyle(.plain)
@@ -1065,32 +1117,8 @@ private struct HomeHeroCarousel: View {
 }
 
 private struct HomeHeroLoopPage: Identifiable {
-    let id: String
+    let id: Int
     let entry: HomeBannerEntry
-
-    static func real(_ entry: HomeBannerEntry) -> Self {
-        Self(id: realID(for: entry.id), entry: entry)
-    }
-
-    static func leadingClone(_ entry: HomeBannerEntry) -> Self {
-        Self(id: leadingCloneID(for: entry.id), entry: entry)
-    }
-
-    static func trailingClone(_ entry: HomeBannerEntry) -> Self {
-        Self(id: trailingCloneID(for: entry.id), entry: entry)
-    }
-
-    static func realID(for bannerID: String) -> String {
-        "home-hero-real::\(bannerID)"
-    }
-
-    static func leadingCloneID(for bannerID: String) -> String {
-        "home-hero-leading::\(bannerID)"
-    }
-
-    static func trailingCloneID(for bannerID: String) -> String {
-        "home-hero-trailing::\(bannerID)"
-    }
 }
 
 private struct HomeHeroCard: View {
@@ -1100,16 +1128,16 @@ private struct HomeHeroCard: View {
     let pageInset: CGFloat
     let cardSpacing: CGFloat
     let topSafeAreaInset: CGFloat
-    let reservesPageIndicatorSpace: Bool
+    let pageIndicatorReservedWidth: CGFloat
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        // The page remains fixed at the viewport width. Only its bitmap moves,
-        // driven by the page's position in the horizontal scroll view. A small
-        // uniform zoom supplies safe overscan for a full-width immersive banner.
+        // The page edge remains the moving reveal mask. Give the image a
+        // separate S-curve, with zero velocity at either end and at most 18%
+        // viewport travel; counter-translation keeps the visible region filled.
         let imageScale: CGFloat = reduceMotion ? 1 : 1.1
-        let parallaxTravel = cardWidth * (imageScale - 1) / 2
+        let animatesReveal = !reduceMotion
 
         ZStack {
             HomeHeroRemoteImage(
@@ -1120,16 +1148,18 @@ private struct HomeHeroCard: View {
             )
                 .frame(width: cardWidth, height: cardHeight)
                 .visualEffect { content, proxy in
-                    content
+                    let progress = pageProgress(
+                        for: proxy,
+                        pageInset: pageInset,
+                        pageStride: cardWidth + cardSpacing
+                    )
+                    let distance = abs(progress)
+                    let easedDistance = distance * distance * (3 - 2 * distance)
+                    let direction: CGFloat = progress < 0 ? -1 : 1
+                    let imagePosition = direction * easedDistance * 0.18
+                    return content
                         .scaleEffect(imageScale)
-                        .offset(
-                            x: parallaxOffset(
-                                for: proxy,
-                                pageInset: pageInset,
-                                pageStride: cardWidth + cardSpacing,
-                                travel: parallaxTravel
-                            )
-                        )
+                        .offset(x: animatesReveal ? (imagePosition - progress) * cardWidth : 0)
                 }
 
             LinearGradient(
@@ -1151,12 +1181,30 @@ private struct HomeHeroCard: View {
                 Spacer(minLength: 0)
                 HomeHeroContent(
                     title: heroTitle,
-                    reservesPageIndicatorSpace: reservesPageIndicatorSpace
+                    pageIndicatorReservedWidth: pageIndicatorReservedWidth
                 )
             }
             .frame(maxWidth: .infinity)
             .padding(.horizontal, AppConstants.Spacing.xl)
             .padding(.bottom, AppConstants.Spacing.xxl)
+            .visualEffect { content, proxy in
+                let progress = abs(pageProgress(
+                    for: proxy,
+                    pageInset: pageInset,
+                    pageStride: cardWidth + cardSpacing
+                ))
+                // Reveal the title near the end of the gesture. A
+                // position-driven fade reverses immediately with the finger;
+                // delayed tasks would keep running after a cancelled swipe.
+                let fraction = animatesReveal ? max(0, 1 - progress / 0.36) : 1
+                // Quintic fade and cubic settling give the text its own rhythm,
+                // without a timer that could outlive an interrupted page turn.
+                let opacity = fraction * fraction * fraction * (fraction * (6 * fraction - 15) + 10)
+                let remaining = 1 - fraction
+                return content
+                    .opacity(opacity)
+                    .offset(y: remaining * remaining * remaining * 10)
+            }
 
         }
         .clipped()
@@ -1213,26 +1261,24 @@ private struct HomeHeroCard: View {
         return entry.banner.imageURL
     }
 
-    nonisolated private func parallaxOffset(
+    nonisolated private func pageProgress(
         for proxy: GeometryProxy,
         pageInset: CGFloat,
-        pageStride: CGFloat,
-        travel: CGFloat
+        pageStride: CGFloat
     ) -> CGFloat {
         let pageMinX = proxy.frame(
             in: .scrollView(axis: .horizontal)
         ).minX - pageInset
-        let pageProgress = min(
+        return min(
             max(pageMinX / max(pageStride, 1), -1),
             1
         )
-        return -pageProgress * travel
     }
 }
 
 private struct HomeHeroContent: View {
     let title: String
-    let reservesPageIndicatorSpace: Bool
+    let pageIndicatorReservedWidth: CGFloat
 
     var body: some View {
         Text(title)
@@ -1241,7 +1287,7 @@ private struct HomeHeroContent: View {
             .multilineTextAlignment(.leading)
             .lineLimit(2)
             .minimumScaleFactor(0.82)
-            .padding(.trailing, reservesPageIndicatorSpace ? 72 : 0)
+            .padding(.trailing, pageIndicatorReservedWidth)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
@@ -1344,17 +1390,36 @@ private struct HomeHeroPageIndicator: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        HStack(spacing: 5) {
-            ForEach(entries) { entry in
-                HomeHeroPageProgressCapsule(
-                    isSelected: entry.id == selectedID,
-                    progress: entry.id == selectedID ? progress : 0
-                )
+        Group {
+            if entries.count > 8 {
+                // Reserve the widest page number so 9 → 10 doesn't reflow the title.
+                Text("\(entries.count) / \(entries.count)")
+                    .hidden()
+                    .overlay(alignment: .trailing) {
+                        Text("\(selectedIndex + 1) / \(entries.count)")
+                    }
+                    .font(.caption.weight(.semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(AppConstants.Colors.secondaryText)
+                    .fixedSize()
+            } else {
+                HStack(spacing: 5) {
+                    ForEach(entries) { entry in
+                        HomeHeroPageProgressCapsule(
+                            isSelected: entry.id == selectedID,
+                            progress: entry.id == selectedID ? progress : 0
+                        )
+                    }
+                }
             }
         }
-        .frame(height: 28)
+        .frame(minHeight: 28)
         .animation(reduceMotion ? nil : .smooth(duration: 0.3), value: selectedID)
         .accessibilityHidden(true)
+    }
+
+    private var selectedIndex: Int {
+        entries.firstIndex(where: { $0.id == selectedID }) ?? 0
     }
 }
 

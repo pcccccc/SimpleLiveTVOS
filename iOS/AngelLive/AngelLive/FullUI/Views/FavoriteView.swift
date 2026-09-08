@@ -14,6 +14,7 @@ struct FavoriteView: View {
     @Environment(AppFavoriteModel.self) private var viewModel
     let embeddedInNavigationStack: Bool
     @State private var searchText = ""
+    @State private var showsCloudSyncDetails = false
     /// 共享导航状态 - 在 PiP 背景/前台切换时保持稳定
     @State private var navigationState = LiveRoomNavigationState()
     /// 共享命名空间 - 用于 zoom 过渡动画
@@ -91,6 +92,38 @@ struct FavoriteView: View {
         // Preserve the original large-title collapse behavior.
         .navigationTitle("收藏")
         .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            if viewModel.cloudReturnError, !viewModel.roomList.isEmpty {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("云同步暂不可用", systemImage: "icloud.slash") {
+                        showsCloudSyncDetails = true
+                    }
+                    .accessibilityHint("本地收藏仍可使用，查看同步说明")
+                }
+            }
+        }
+        .sheet(isPresented: $showsCloudSyncDetails) {
+            NavigationStack {
+                FavoriteCloudUnavailableView(
+                    statusMessage: viewModel.cloudKitStateString,
+                    syncError: viewModel.lastSyncError,
+                    hasLocalFavorites: !viewModel.roomList.isEmpty,
+                    isRefreshing: viewModel.isCloudSyncing,
+                    onRetry: {
+                        Task { await viewModel.pullToRefresh() }
+                    }
+                )
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("完成") { showsCloudSyncDetails = false }
+                    }
+                }
+            }
+            .presentationDetents([.medium, .large])
+        }
+        .onChange(of: viewModel.cloudKitReady) { _, isReady in
+            if isReady { showsCloudSyncDetails = false }
+        }
     }
 
     /// 同步提示条,不拦截触摸。按顶部形态分流:
@@ -144,6 +177,82 @@ struct FavoriteView: View {
         }
         let timeSinceLeave = Date().timeIntervalSince(lastLeave)
         return timeSinceLeave < FavoriteView.syncCooldown
+    }
+}
+
+/// FullUI presents account guidance locally; shared sync state and ShellUI keep their existing behavior.
+struct FavoriteCloudUnavailableView: View {
+    let statusMessage: String
+    let syncError: SyncError?
+    let hasLocalFavorites: Bool
+    let isRefreshing: Bool
+    let onRetry: () -> Void
+    @State private var showsSignInInstructions = false
+
+    private var needsSignIn: Bool {
+        // The legacy account-status path still supplies a string rather than SyncError.
+        syncError?.kind == .notSignedIn || statusMessage.hasPrefix("未登录")
+    }
+
+    private var explanation: String {
+        if needsSignIn {
+            return "尚未登录 iCloud，暂时无法同步其他设备上的收藏。"
+        }
+        return statusMessage.replacingOccurrences(
+            of: "系统设置-用户和账户",
+            with: "系统「设置」顶部的 Apple 账户"
+        )
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 20) {
+                Image(systemName: "icloud.slash")
+                    .font(.largeTitle)
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
+
+                Text("云同步暂不可用")
+                    .font(.title3.bold())
+
+                Text(explanation)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                Text(hasLocalFavorites
+                     ? "这台设备上的收藏仍可正常浏览和使用。"
+                     : "这台设备还没有收藏。你仍可以浏览直播并添加收藏，内容会保存在本地。")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                if needsSignIn {
+                    Button("查看登录方法") { showsSignInInstructions = true }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+
+                    Button("已登录，重新检查", action: onRetry)
+                        .frame(minHeight: 44)
+                        .disabled(isRefreshing)
+                } else {
+                    Button("重新检查同步", action: onRetry)
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                        .disabled(isRefreshing)
+                }
+            }
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: 460)
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 28)
+            .padding(.vertical, 40)
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .background(AppConstants.Colors.primaryBackground)
+        .alert("登录 iCloud", isPresented: $showsSignInInstructions) {
+            Button("知道了", role: .cancel) { }
+        } message: {
+            Text("1. 打开这台设备的系统「设置」。\n2. 点击顶部的 Apple 账户入口，按提示登录。\n3. 返回 AngelLive，点击「已登录，重新检查」。\n\n如果已经登录，请在「设置」→ Apple 账户 → iCloud 中检查 AngelLive 的使用权限。")
+        }
     }
 }
 

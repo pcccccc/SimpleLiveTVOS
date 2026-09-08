@@ -249,7 +249,7 @@ class FavoriteListViewController: UIViewController {
     func updateStateViewsOnly() {
         hideAllStateViews()
 
-        if viewModel.isLoading && filteredSections.isEmpty {
+        if viewModel.isLoading && viewModel.roomList.isEmpty {
             // 仅在没有旧数据时显示骨架屏
             showSkeletonView()
         } else if viewModel.shouldShowBlockingCloudError {
@@ -268,7 +268,7 @@ class FavoriteListViewController: UIViewController {
     private func updateViewState() {
         hideAllStateViews()
 
-        if viewModel.isLoading {
+        if viewModel.isLoading && viewModel.roomList.isEmpty {
             showSkeletonView()
         } else if viewModel.shouldShowBlockingCloudError {
             // 云同步失败不遮挡已加载的本地收藏；仅本地也无数据时显示整页错误。
@@ -322,10 +322,11 @@ class FavoriteListViewController: UIViewController {
 
     private func showErrorView(message: String) {
         let errorView = AnyView(
-            ErrorView(
-                title: "获取收藏失败",
-                message: message,
-                showRetry: true,
+            FavoriteCloudUnavailableView(
+                statusMessage: message,
+                syncError: viewModel.lastSyncError,
+                hasLocalFavorites: !viewModel.roomList.isEmpty,
+                isRefreshing: viewModel.isCloudSyncing,
                 onRetry: { [weak self] in
                     self?.handleRefresh()
                 }

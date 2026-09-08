@@ -20,11 +20,18 @@ enum LiveCheckMode {
 }
 
 struct LiveRoomCard: View {
+    enum Presentation {
+        case standard
+        case home
+    }
+
     let room: LiveModel
     let width: CGFloat?
     let liveCheckMode: LiveCheckMode
     let showsCoverBadge: Bool
     let subtitle: String?
+    let presentation: Presentation
+    let recommendationReason: String?
     /// 可选的删除回调（用于历史记录）
     var onDelete: (() -> Void)? = nil
     /// 是否禁用 SwiftUI 自身的 tap gesture(由 cell 设置为 true)。
@@ -91,6 +98,8 @@ struct LiveRoomCard: View {
         liveCheckMode: LiveCheckMode = .local,
         showsCoverBadge: Bool = false,
         subtitle: String? = nil,
+        presentation: Presentation = .standard,
+        recommendationReason: String? = nil,
         disableTapGesture: Bool = false
     ) {
         self.room = room
@@ -98,6 +107,8 @@ struct LiveRoomCard: View {
         self.liveCheckMode = liveCheckMode
         self.showsCoverBadge = showsCoverBadge
         self.subtitle = subtitle
+        self.presentation = presentation
+        self.recommendationReason = recommendationReason
         self.disableTapGesture = disableTapGesture
     }
 
@@ -232,6 +243,7 @@ struct LiveRoomCard: View {
         VStack {
             // 封面图（带可靠的兜底占位）
             coverView
+                .frame(height: presentation == .home ? width.map { $0 / AppConstants.AspectRatio.pic } : nil)
                 // TODO: 平台图标和直播状态暂时隐藏，待重新设计后恢复
 //                .overlay(alignment: .topTrailing) {
 //                    if showsCoverBadge {
@@ -244,7 +256,7 @@ struct LiveRoomCard: View {
                 .modifier(MatchedTransitionSourceModifier(id: room.roomId, namespace: namespace))
 
             // 主播信息
-            HStack(spacing: 8) {
+            HStack(alignment: presentation == .home ? .top : .center, spacing: 8) {
                 avatarView
                     .frame(width: 32, height: 32)
                     .clipShape(Circle())
@@ -253,12 +265,23 @@ struct LiveRoomCard: View {
                     Text(room.roomTitle.orDash)
                         .font(.subheadline.bold())
                         .foregroundStyle(AppConstants.Colors.primaryText)
-                        .lineLimit(1)
+                        .lineLimit(presentation == .home ? 2 : 1)
+                        .fixedSize(horizontal: false, vertical: presentation == .home)
 
-                    Text(displaySubtitle)
+                    Text(presentation == .home ? room.userName.orDash : displaySubtitle)
                         .font(.caption)
                         .foregroundStyle(AppConstants.Colors.secondaryText)
                         .lineLimit(1)
+
+                    if presentation == .home,
+                       let reason = recommendationReason?.trimmingCharacters(in: .whitespacesAndNewlines),
+                       !reason.isEmpty, reason != room.userName {
+                        Text(reason)
+                            .font(.caption)
+                            .foregroundStyle(AppConstants.Colors.secondaryText)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
 
                 Spacer()
@@ -266,7 +289,7 @@ struct LiveRoomCard: View {
         }
         .frame(
             width: width,
-            height: width.map { $0 / AppConstants.AspectRatio.card(width: $0) },
+            height: presentation == .home ? nil : width.map { $0 / AppConstants.AspectRatio.card(width: $0) },
             alignment: .topLeading
         )
         .contentShape(Rectangle())

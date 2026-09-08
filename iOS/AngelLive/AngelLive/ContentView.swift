@@ -33,6 +33,7 @@ struct ContentView: View {
     @AppStorage(HomePagePreference.selectedPluginStorageKey, store: .shared)
     private var selectedHomePluginId = ""
     @Environment(\.presentToast) private var presentToast
+    @Environment(\.scenePhase) private var scenePhase
 
     // 首次启动管理器
     @Environment(WelcomeManager.self) private var welcomeManager
@@ -139,6 +140,7 @@ struct ContentView: View {
                 recommendationsAvailable: recommendationsAvailableForMenu,
                 selectedPreference: effectiveHomePagePreference,
                 selectedPluginId: selectedHomePluginId,
+                allowsTipPresentation: selectedTab == .home && !welcomeManager.showWelcome && scenePhase == .active,
                 onSelectRecommendations: selectRecommendations,
                 onSelectFavorites: selectFavorites,
                 onSelectPlatform: selectPlatform
