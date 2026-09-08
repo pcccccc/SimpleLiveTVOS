@@ -75,6 +75,7 @@ struct ContentView: View {
                                 MacHomeView(isSelected: selectedTab == .home) {
                                     selectedTab = .favorite
                                 }
+                                .apiCredentialContentIdentity()
                             } label: {
                                 Label("首页", systemImage: "house.fill")
                             }
@@ -103,6 +104,7 @@ struct ContentView: View {
                                 ForEach(platformViewModel.platformInfo, id: \.liveType) { platform in
                                     Tab(value: TabSelection.platform(platform)) {
                                         PlatformDetailTab(platform: platform)
+                                            .apiCredentialContentIdentity(pluginId: platform.pluginId)
                                     } label: {
                                         Label {
                                             Text(platform.title)
@@ -121,6 +123,7 @@ struct ContentView: View {
                         if pluginAvailability.hasAvailablePlugins {
                             Tab(value: TabSelection.search) {
                                 SearchView()
+                                    .apiCredentialContentIdentity()
                             } label: {
                                 Label("搜索", systemImage: "magnifyingglass")
                             }
@@ -155,6 +158,7 @@ struct ContentView: View {
         .environment(favoriteViewModel)
         .environment(searchViewModel)
         .environment(pluginAvailability)
+        .platformAPICredentialLifecycle(enabled: pluginAvailability.hasAvailablePlugins)
         .environment(bookmarkService)
         .environment(pluginSourceManager)
         .environment(consentService)

@@ -125,6 +125,7 @@ struct ContentView: View {
         switch effectiveHomePagePreference {
         case .recommendations:
             HomeView()
+                .apiCredentialContentIdentity()
         case .favorites:
             AdaptiveFavoriteView()
         }
@@ -175,6 +176,7 @@ struct ContentView: View {
             }
         }
         .environment(pluginAvailability)
+        .platformAPICredentialLifecycle(enabled: pluginAvailability.hasAvailablePlugins)
         .environment(bookmarkService)
         .environment(pluginSourceManager)
         .environment(shellHistoryService)
@@ -448,6 +450,7 @@ struct ContentView: View {
         TabView(selection: $selectedTab) {
             Tab("首页", systemImage: "house.fill", value: TabSelection.home) {
                 HomeView(usesPersistedPlatformSelection: false)
+                    .apiCredentialContentIdentity()
             }
 
             Tab(value: TabSelection.favorites) {
@@ -476,6 +479,7 @@ struct ContentView: View {
                 ForEach(platformViewModel.platformInfo) { platform in
                     Tab(value: TabSelection.platform(platform)) {
                         PlatformDetailTabContainer(platform: platform)
+                            .apiCredentialContentIdentity(pluginId: platform.pluginId)
                     } label: {
                         Label {
                             Text(platform.title)
@@ -601,6 +605,7 @@ struct ContentView: View {
     private var iOS17iPadTabView: some View {
         TabView(selection: $selectedTab) {
             HomeView(usesPersistedPlatformSelection: false)
+                .apiCredentialContentIdentity()
                 .tabItem {
                     Label("首页", systemImage: "house.fill")
                 }

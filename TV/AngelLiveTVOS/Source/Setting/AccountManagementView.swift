@@ -85,9 +85,13 @@ struct AccountManagementView: View {
                                     .foregroundStyle(.secondary)
                                     .accessibilityLabel("支持扫码登录")
                             }
+                            if entry.supportsAPIToken {
+                                PlatformAPITokenStatusLabel(pluginId: entry.pluginId)
+                            } else {
                             Text(loginStatusText(for: entry))
                                 .font(.system(size: 30))
                                 .foregroundStyle(loginStatusColor(for: entry))
+                            }
                             Image(systemName: "chevron.right")
                                 .foregroundStyle(.secondary)
                         }
@@ -141,6 +145,7 @@ struct PlatformDetailPageView: View {
     @State private var validationMessage: String?
     @State private var showLogoutConfirm = false
     @State private var showQRCodeLogin = false
+    @State private var showAPIToken = false
 
     /// 是否支持服务端 Cookie 验证
     private var supportsValidation: Bool {
@@ -152,12 +157,15 @@ struct PlatformDetailPageView: View {
             Spacer()
 
             // 状态显示区域
-            statusSection
+            Group {
+                if entry.supportsAPIToken { PlatformAPITokenStatusLabel(pluginId: entry.pluginId) }
+                else { statusSection }
+            }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 40)
 
             // 已登录时的操作
-            if isLoggedIn {
+            if isLoggedIn && entry.loginFlow != nil {
                 // 支持验证的平台：验证 Cookie
                 if supportsValidation {
                     Button {
@@ -187,7 +195,10 @@ struct PlatformDetailPageView: View {
                 }
             }
 
-            if entry.loginChallenge?.isSupportedByCurrentHost == true {
+            if entry.methods(for: .tvOS).contains(.apiToken) {
+                Button(PlatformLoginMethod.apiToken.title) { showAPIToken = true }
+            }
+            if entry.methods(for: .tvOS).contains(.qrCode) {
                 Button {
                     showQRCodeLogin = true
                 } label: {
@@ -201,7 +212,7 @@ struct PlatformDetailPageView: View {
                 }
             }
 
-            // 手动输入 Cookie（始终可用）
+            if entry.methods(for: .tvOS).contains(.manualCookie) {
             Button {
                 onManualInput(entry)
             } label: {
@@ -213,10 +224,14 @@ struct PlatformDetailPageView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            }
 
             Spacer(minLength: 200)
         }
         .onExitCommand { onBack() }
+        .fullScreenCover(isPresented: $showAPIToken) {
+            PlatformAPITokenView(entry: entry)
+        }
         .alert("退出登录", isPresented: $showLogoutConfirm) {
             Button("取消", role: .cancel) {}
             Button("确定", role: .destructive) { logout() }
@@ -630,12 +645,12 @@ struct PlatformManualInputPageView: View {
 
     /// 网站域名（从 manifest 获取，可能为 nil）
     private var websiteHost: String {
-        entry.loginFlow.websiteHost ?? entry.pluginId
+        entry.loginFlow?.websiteHost ?? entry.pluginId
     }
 
     /// Cookie 格式提示（从 manifest 获取）
     private var requiredCookieHint: String {
-        entry.loginFlow.requiredCookieHint ?? "需包含有效的登录 Cookie"
+        entry.loginFlow?.requiredCookieHint ?? "需包含有效的登录 Cookie"
     }
 
     var body: some View {

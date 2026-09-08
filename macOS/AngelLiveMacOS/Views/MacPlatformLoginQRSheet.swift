@@ -11,44 +11,27 @@ import CoreImage.CIFilterBuiltins
 import SwiftUI
 import AngelLiveCore
 
-private enum MacPlatformLoginMethod {
-    case qrCode
-    case web
-}
-
 struct MacPlatformLoginSheet: View {
     let entry: LoginPlatformEntry
 
-    @State private var method: MacPlatformLoginMethod
-
-    init(entry: LoginPlatformEntry, isLoggedIn: Bool) {
-        self.entry = entry
-        let supportsQRCode = entry.loginChallenge?.isSupportedByCurrentHost == true
-        let prefersQRCode = entry.loginChallenge?.prefers(.macOS) == true
-        _method = State(initialValue: !isLoggedIn && supportsQRCode && prefersQRCode ? .qrCode : .web)
-    }
+    let method: PlatformLoginMethod
 
     var body: some View {
         switch method {
+        case .apiToken:
+            PlatformAPITokenView(entry: entry)
+        case .manualCookie, .clientCredentials:
+            EmptyView()
         case .qrCode:
-            MacPlatformLoginQRSheet(
-                entry: entry,
-                onUseWebLogin: { method = .web }
-            )
+            MacPlatformLoginQRSheet(entry: entry)
         case .web:
-            MacPlatformLoginWebSheet(
-                pluginId: entry.pluginId,
-                onUseQRCode: entry.loginChallenge?.isSupportedByCurrentHost == true
-                    ? { method = .qrCode }
-                    : nil
-            )
+            MacPlatformLoginWebSheet(pluginId: entry.pluginId)
         }
     }
 }
 
 private struct MacPlatformLoginQRSheet: View {
     let entry: LoginPlatformEntry
-    let onUseWebLogin: () -> Void
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
@@ -67,9 +50,6 @@ private struct MacPlatformLoginQRSheet: View {
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("关闭") { dismiss() }
-                    }
-                    ToolbarItem(placement: .primaryAction) {
-                        Button("网页登录") { onUseWebLogin() }
                     }
                 }
         }
@@ -155,7 +135,6 @@ private struct MacPlatformLoginQRSheet: View {
             .buttonStyle(.borderedProminent)
             .disabled(isWorking || verificationCode.trimmingCharacters(in: .whitespacesAndNewlines).count != presentation.codeLength)
             resendButton(presentation, isWorking: isWorking)
-            Button("改用网页登录") { onUseWebLogin() }
         }
         .onAppear { verificationFieldFocused = !isWorking }
     }
@@ -207,9 +186,6 @@ private struct MacPlatformLoginQRSheet: View {
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 420)
 
-                Button("改用网页登录") {
-                    onUseWebLogin()
-                }
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 10)
@@ -262,7 +238,6 @@ private struct MacPlatformLoginQRSheet: View {
                         Button("重试") { service.retry() }
                             .buttonStyle(.borderedProminent)
                     }
-                    Button("改用网页登录") { onUseWebLogin() }
                 }
             }
             .frame(maxWidth: .infinity)

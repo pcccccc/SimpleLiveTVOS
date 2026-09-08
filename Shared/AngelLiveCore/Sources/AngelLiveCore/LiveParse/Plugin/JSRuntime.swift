@@ -241,15 +241,18 @@ private final class ManagedCredentialRequestDelegate: NSObject, URLSessionTaskDe
     private let originalURL: URL?
     private let pluginHeaderNames: Set<String>
     private let rejectsCrossOriginRedirects: Bool
+    private let followRedirects: Bool
 
     init(
         originalURL: URL?,
         pluginHeaderNames: Set<String>,
-        rejectsCrossOriginRedirects: Bool
+        rejectsCrossOriginRedirects: Bool,
+        followRedirects: Bool = true
     ) {
         self.originalURL = originalURL
         self.pluginHeaderNames = pluginHeaderNames
         self.rejectsCrossOriginRedirects = rejectsCrossOriginRedirects
+        self.followRedirects = followRedirects
     }
 
     func urlSession(
@@ -259,6 +262,7 @@ private final class ManagedCredentialRequestDelegate: NSObject, URLSessionTaskDe
         newRequest request: URLRequest,
         completionHandler: @escaping @Sendable (URLRequest?) -> Void
     ) {
+        guard followRedirects else { completionHandler(nil); return }
         let sameOrigin = Self.isSameOrigin(originalURL, request.url)
         let isHTTPSDowngrade = response.url?.scheme?.lowercased() == "https"
             && request.url?.scheme?.lowercased() != "https"
@@ -337,6 +341,56 @@ private func mergedCookieHeader(transaction: String?, explicit: String?) -> Stri
 }
 
 enum SensitivePluginHTTPConsoleSummary {
+    /// Manual API credential validation may expose an upstream error reason,
+    /// never the complete response, request headers, or echoed candidate token.
+    static func loginFailureBody(statusCode: Int, body: String?, token: String) -> String? {
+        loginFailureBody(statusCode: statusCode, body: body, secrets: [token])
+    }
+
+    static func loginFailureBody(statusCode: Int, body: String?, secrets: [String]) -> String? {
+        guard (400...599).contains(statusCode) else { return nil }
+        guard let body, body.utf8.count <= 65_536,
+              let data = body.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return "<login error response omitted: not a bounded JSON object>"
+        }
+        let fields: Set<String> = ["status", "code", "error", "error_description", "message", "reason", "detail", "description"]
+        let secrets = Set(secrets.flatMap { secret in
+            let raw = secret.trimmingCharacters(in: .whitespacesAndNewlines)
+            return [raw, raw.split(whereSeparator: \.isWhitespace).last.map(String.init) ?? raw]
+        }.filter { !$0.isEmpty }).sorted { $0.count > $1.count }
+
+        func sanitize(_ value: Any, depth: Int) -> Any? {
+            guard depth < 4 else { return nil }
+            if let dictionary = value as? [String: Any] {
+                return dictionary.reduce(into: [String: Any]()) { result, item in
+                    let key = item.key.lowercased()
+                    if fields.contains(key), let safe = sanitize(item.value, depth: depth + 1) { result[key] = safe }
+                }
+            }
+            if let text = value as? String {
+                var safe = redactedText(text)
+                for secret in secrets {
+                    safe = safe.replacingOccurrences(of: secret, with: "<redacted>")
+                    if let encoded = secret.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
+                        safe = safe.replacingOccurrences(of: encoded, with: "<redacted>")
+                    }
+                }
+                safe = safe.replacingOccurrences(of: #"(?i)\b(Bearer|OAuth)\s+[A-Za-z0-9._~+/=-]+"#,
+                                                 with: "$1 <redacted>", options: .regularExpression)
+                return String(safe.prefix(1_000))
+            }
+            return value is NSNumber ? value : nil
+        }
+        let summary = sanitize(object, depth: 0) as? [String: Any] ?? [:]
+        guard !summary.isEmpty,
+              let encoded = try? JSONSerialization.data(withJSONObject: summary, options: [.sortedKeys]),
+              let text = String(data: encoded, encoding: .utf8) else {
+            return "<login error response has no diagnostic fields>"
+        }
+        return String(text.prefix(2_000))
+    }
+
     static func responseBody(
         requestContainsCookieHeader: Bool? = nil
     ) -> String? {
@@ -612,6 +666,10 @@ public final class JSRuntime: @unchecked Sendable {
     /// 只允许在 `queue` 上读写。敏感插件调用执行期间，JS console 与
     /// runtime 异常日志都静默，防止插件把 Cookie/token 拼进任意字符串。
     private var sensitiveLoggingDepth = 0
+    private var apiTokenSession = false
+    /// Set only on the isolated runtime for manual API credential validation.
+    private var loginDiagnosticSecrets: [String] = []
+    private var credentialRetired = false
     /// 只允许在 `queue` 上读写；JSValue 永不跨出 JavaScriptCore 串行队列。
     private var hostHTTPCallbacks: [UUID: HostHTTPCallback] = [:]
     /// Retain cancellable host request tasks until their matching JS callback
@@ -695,6 +753,7 @@ public final class JSRuntime: @unchecked Sendable {
                 completion.install(continuation)
                 queue.async {
                     guard !completion.isCompleted else { return }
+                    guard !self.credentialRetired else { completion.cancel(); return }
                     if let sourceURL {
                         self.context.evaluateScript(script, withSourceURL: sourceURL)
                     } else {
@@ -736,7 +795,7 @@ public final class JSRuntime: @unchecked Sendable {
         }
     }
 
-    public func callPluginFunction(name: String, payload: [String: Any] = [:]) async throws -> Any {
+    public func callPluginFunction(name: String, payload: [String: Any] = [:], checkSynchronousException: Bool = false) async throws -> Any {
         // payload 必须跨到 JSContext 的串行队列才能构造 JSValue;
         // 装盒完成一次性所有权转移,理由与安全依据见 PluginPayloadTransferBox 文档。
         let payloadBox = PluginPayloadTransferBox(value: payload)
@@ -751,11 +810,13 @@ public final class JSRuntime: @unchecked Sendable {
                         guard let pluginObject = self.context.objectForKeyedSubscript("LiveParsePlugin") else {
                             throw LiveParsePluginError.invalidReturnValue("Missing globalThis.LiveParsePlugin")
                         }
+                        guard !self.credentialRetired else { throw CancellationError() }
                         guard let fn = pluginObject.objectForKeyedSubscript(name), fn.isObject else {
                             throw LiveParsePluginError.invalidReturnValue("Missing function: \(name)")
                         }
 
                         let jsPayload = JSValue(object: payloadBox.value, in: self.context) as Any
+                        if checkSynchronousException { self.context.exception = nil }
                         guard let result = pluginObject.invokeMethod(name, withArguments: [jsPayload]) else {
                             if let exception = self.context.exception {
                                 throw LiveParsePluginError.fromJSException(exception.toString() ?? "<unknown>")
@@ -763,6 +824,9 @@ public final class JSRuntime: @unchecked Sendable {
                             throw LiveParsePluginError.invalidReturnValue("Function returned nil")
                         }
 
+                        if checkSynchronousException, let exception = self.context.exception {
+                            throw LiveParsePluginError.fromJSException(exception.toString() ?? "<unknown>")
+                        }
                         guard !completion.isCompleted else { return }
                         if Self.isPromise(result) {
                             self.awaitPromise(result, callID: callID, completion: completion)
@@ -800,10 +864,12 @@ public final class JSRuntime: @unchecked Sendable {
 
     /// 覆盖插件加载和函数调用的完整敏感区间。计数而非 Bool 是为了让同一
     /// runtime 的重叠调用保持保守静默，直到最后一个敏感调用结束。
-    func beginSensitiveLoggingSuppression() async {
+    func beginSensitiveLoggingSuppression(apiTokenSession: Bool = false, loginDiagnosticSecrets: [String] = []) async {
         await withCheckedContinuation { continuation in
             queue.async {
                 self.sensitiveLoggingDepth += 1
+                self.apiTokenSession = self.apiTokenSession || apiTokenSession
+                if apiTokenSession, !loginDiagnosticSecrets.isEmpty { self.loginDiagnosticSecrets = loginDiagnosticSecrets }
                 continuation.resume()
             }
         }
@@ -833,6 +899,22 @@ public final class JSRuntime: @unchecked Sendable {
                 continuation.resume()
             }
         }
+    }
+
+    /// Retire a credential generation, including pending JS promises and late logs.
+    func retireCredentialGeneration() async {
+        await withCheckedContinuation { continuation in
+            queue.async {
+                self.credentialRetired = true
+                self.sensitiveLoggingDepth += 1
+                for callID in Array(self.pendingPromiseCalls.keys) {
+                    self.pendingPromiseCalls[callID]?.completion.cancel()
+                    self.cancelPendingPromise(callID: callID)
+                }
+                continuation.resume()
+            }
+        }
+        await abandonInFlightOperations()
     }
 }
 
@@ -1125,6 +1207,10 @@ private extension JSRuntime {
                 reject.call(withArguments: ["Host HTTP runtime released"])
                 return
             }
+            guard !self.credentialRetired else {
+                reject.call(withArguments: ["Credential generation retired"])
+                return
+            }
             let optionsData = optionsJSON.data(using: .utf8) ?? Data()
             let options = (try? JSONSerialization.jsonObject(with: optionsData) as? [String: Any]) ?? [:]
 
@@ -1153,6 +1239,7 @@ private extension JSRuntime {
             request.httpBody = envelope.body
             let protectsManagedCredential = envelope.authMode != .none
                 || !envelope.cookieInject.isEmpty
+                || self.apiTokenSession
             if protectsManagedCredential {
                 request.httpShouldHandleCookies = false
                 request.cachePolicy = .reloadIgnoringLocalCacheData
@@ -1255,11 +1342,12 @@ private extension JSRuntime {
                 startedAt: httpStartTime
             )
 
+            let apiTokenSession = self.apiTokenSession
             let flightKey = PluginHTTPFlightKey(
                 pluginId: self.pluginId,
                 sessionRevision: envelope.sessionRevision,
                 method: envelope.method,
-                singleFlightKey: envelope.singleFlightKey ?? "request:\(callbackID.uuidString)"
+                singleFlightKey: apiTokenSession ? "request:\(callbackID.uuidString)" : envelope.singleFlightKey ?? "request:\(callbackID.uuidString)"
             )
             let coordinator = self.httpFlightCoordinator
             let session = self.session
@@ -1354,16 +1442,17 @@ private extension JSRuntime {
                 do {
                     let snapshot = try await coordinator.execute(
                         key: flightKey,
-                        successTTL: envelope.singleFlightKey == nil ? 0 : envelope.successCacheTTL,
-                        failureTTL: envelope.singleFlightKey == nil ? 0 : envelope.failureCacheTTL,
-                        bypassCache: envelope.bypassSingleFlightCache
+                        successTTL: apiTokenSession || envelope.singleFlightKey == nil ? 0 : envelope.successCacheTTL,
+                        failureTTL: apiTokenSession || envelope.singleFlightKey == nil ? 0 : envelope.failureCacheTTL,
+                        bypassCache: apiTokenSession || envelope.bypassSingleFlightCache
                     ) {
                         try await Self.performHostHTTPRequest(
                             session: session,
                             request: finalRequest,
                             protectsManagedCredential: protectsManagedCredential,
                             pluginHeaderNames: pluginHeaderNames,
-                            rejectsCrossOriginRedirects: rejectsCrossOriginRedirects
+                            rejectsCrossOriginRedirects: rejectsCrossOriginRedirects,
+                            followRedirects: apiTokenSession ? envelope.followRedirects : true
                         )
                     }
                     self?.queue.async { [weak self] in
@@ -1661,7 +1750,8 @@ private extension JSRuntime {
         request: URLRequest,
         protectsManagedCredential: Bool,
         pluginHeaderNames: Set<String>,
-        rejectsCrossOriginRedirects: Bool
+        rejectsCrossOriginRedirects: Bool,
+        followRedirects: Bool = true
     ) async throws -> PluginHTTPFlightSnapshot {
         do {
             let data: Data
@@ -1670,7 +1760,8 @@ private extension JSRuntime {
                 let delegate = ManagedCredentialRequestDelegate(
                     originalURL: request.url,
                     pluginHeaderNames: pluginHeaderNames,
-                    rejectsCrossOriginRedirects: rejectsCrossOriginRedirects
+                    rejectsCrossOriginRedirects: rejectsCrossOriginRedirects,
+                    followRedirects: followRedirects
                 )
                 (data, response) = try await session.data(for: request, delegate: delegate)
             } else {
@@ -1819,10 +1910,21 @@ private extension JSRuntime {
                 : snapshot.responseURL
             let bodyText = String(data: snapshot.data, encoding: .utf8)
             let bodyBase64 = snapshot.data.base64EncodedString()
+            // Include the actual authorization header: an application credential
+            // flow can obtain a new token that the host never persisted.
+            let authorizationSecrets = callback.requestHeaders.compactMap { key, value in
+                ["authorization", "proxy-authorization"].contains(key.lowercased()) ? value : nil
+            }
+            let loginErrorBody = loginDiagnosticSecrets.isEmpty ? nil : SensitivePluginHTTPConsoleSummary.loginFailureBody(
+                statusCode: snapshot.statusCode, body: bodyText, secrets: loginDiagnosticSecrets + authorizationSecrets
+            )
             Logger.debug(
                 "[JSRuntime][HTTP] pluginId=\(pluginId) method=\(callback.envelope.method) status=\(snapshot.statusCode) bytes=\(snapshot.data.count) duration=\(String(format: "%.3f", elapsed))s",
                 category: .plugin
             )
+            if let loginErrorBody {
+                Logger.debug("[JSRuntime][HTTP][LOGIN] pluginId=\(pluginId) status=\(snapshot.statusCode) response=\(loginErrorBody)", category: .plugin)
+            }
             if PluginConsoleService.shared.isEnabled {
                 Self.logHTTPRecord(
                     pluginId: pluginId,
@@ -1836,7 +1938,8 @@ private extension JSRuntime {
                         ? snapshot.requestContainsCookieHeader
                         : nil,
                     error: nil,
-                    duration: elapsed
+                    duration: elapsed,
+                    diagnosticResponseBody: loginErrorBody
                 )
             }
             let payload: [String: Any] = [
@@ -1966,7 +2069,8 @@ private extension JSRuntime {
         responseBody: String?,
         requestContainsCookieHeader: Bool?,
         error: String?,
-        duration: TimeInterval
+        duration: TimeInterval,
+        diagnosticResponseBody: String? = nil
     ) {
         // 跟父调用对齐:无条件记录 HTTP 子请求,挂到当前活跃的 entry 上。
         // 没有活跃 entry(很罕见,通常意味着插件函数已结束)才跳过。
@@ -1986,7 +2090,7 @@ private extension JSRuntime {
             ? nil
             : envelope.body.flatMap { String(data: $0, encoding: .utf8) }
         let loggedResponseBody = sensitive
-            ? SensitivePluginHTTPConsoleSummary.responseBody(
+            ? diagnosticResponseBody ?? SensitivePluginHTTPConsoleSummary.responseBody(
                 requestContainsCookieHeader: requestContainsCookieHeader
             )
             : responseBody.map { String($0.prefix(2_000)) }

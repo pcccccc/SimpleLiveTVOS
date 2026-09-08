@@ -10,47 +10,29 @@ import UIKit
 import CoreImage.CIFilterBuiltins
 import AngelLiveCore
 
-private enum PlatformLoginMethod {
-    case qrCode
-    case web
-}
-
 struct PlatformLoginSheet: View {
     let entry: LoginPlatformEntry
 
-    @State private var method: PlatformLoginMethod
-
-    init(entry: LoginPlatformEntry, isLoggedIn: Bool) {
-        self.entry = entry
-
-        let supportsQRCode = entry.loginChallenge?.isSupportedByCurrentHost == true
-        let prefersQRCode = entry.loginChallenge?.prefers(.iOS) == true
-        // iPhone 上默认展示自身二维码并不实用，仍以网页登录为首选；iPad 才遵循 preferOn。
-        let canPreferQRCodeHere = UIDevice.current.userInterfaceIdiom != .phone
-        _method = State(initialValue: !isLoggedIn && supportsQRCode && prefersQRCode && canPreferQRCodeHere ? .qrCode : .web)
-    }
+    let method: PlatformLoginMethod
 
     var body: some View {
         switch method {
+        case .clientCredentials:
+            PlatformAPITokenView(entry: entry, kind: .clientCredentials)
+        case .apiToken:
+            PlatformAPITokenView(entry: entry)
+        case .manualCookie:
+            EmptyView()
         case .qrCode:
-            PlatformLoginQRCodeSheet(
-                entry: entry,
-                onUseWebLogin: { method = .web }
-            )
+            PlatformLoginQRCodeSheet(entry: entry)
         case .web:
-            PlatformLoginWebSheet(
-                pluginId: entry.pluginId,
-                onUseQRCode: entry.loginChallenge?.isSupportedByCurrentHost == true
-                    ? { method = .qrCode }
-                    : nil
-            )
+            PlatformLoginWebSheet(pluginId: entry.pluginId)
         }
     }
 }
 
 private struct PlatformLoginQRCodeSheet: View {
     let entry: LoginPlatformEntry
-    let onUseWebLogin: () -> Void
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
@@ -70,9 +52,6 @@ private struct PlatformLoginQRCodeSheet: View {
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
                         Button("关闭") { dismiss() }
-                    }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button("网页登录") { onUseWebLogin() }
                     }
                 }
         }
@@ -173,8 +152,6 @@ private struct PlatformLoginQRCodeSheet: View {
                 .disabled(isWorking || verificationCode.trimmingCharacters(in: .whitespacesAndNewlines).count != presentation.codeLength)
 
                 resendButton(presentation, isWorking: isWorking)
-                Button("改用网页登录") { onUseWebLogin() }
-                    .buttonStyle(.bordered)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
@@ -229,10 +206,6 @@ private struct PlatformLoginQRCodeSheet: View {
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 420)
 
-                Button("改用网页登录") {
-                    onUseWebLogin()
-                }
-                .buttonStyle(.bordered)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
@@ -285,8 +258,6 @@ private struct PlatformLoginQRCodeSheet: View {
                         Button("重试") { service.retry() }
                             .buttonStyle(.borderedProminent)
                     }
-                    Button("改用网页登录") { onUseWebLogin() }
-                        .buttonStyle(.bordered)
                 }
             }
             .frame(maxWidth: .infinity)

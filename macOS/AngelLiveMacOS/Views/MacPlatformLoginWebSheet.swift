@@ -12,12 +12,6 @@ import AngelLiveCore
 
 struct MacPlatformLoginWebSheet: View {
     let pluginId: String
-    let onUseQRCode: (() -> Void)?
-
-    init(pluginId: String, onUseQRCode: (() -> Void)? = nil) {
-        self.pluginId = pluginId
-        self.onUseQRCode = onUseQRCode
-    }
 
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var syncService = PlatformCredentialSyncService.shared
@@ -59,8 +53,6 @@ struct MacPlatformLoginWebSheet: View {
                         Button("退出登录", role: .destructive) {
                             logout()
                         }
-                    } else if let onUseQRCode {
-                        Button("扫码登录") { onUseQRCode() }
                     }
                 }
             }
@@ -129,9 +121,6 @@ struct MacPlatformLoginWebSheet: View {
             }
 
             Section {
-                if let onUseQRCode {
-                    Button("扫码重新登录") { onUseQRCode() }
-                }
                 Button("重新登录") {
                     showWebView = true
                     statusText = "请在网页中完成登录，系统会自动保存会话并由宿主托管鉴权。"
@@ -183,9 +172,10 @@ struct MacPlatformLoginWebSheet: View {
 
     @ViewBuilder
     private func loginContent(entry: LoginPlatformEntry) -> some View {
+        if let loginFlow = entry.loginFlow {
         VStack(spacing: 0) {
             MacPlatformLoginWebView(
-                loginFlow: entry.loginFlow,
+                loginFlow: loginFlow,
                 onWebViewCreated: { webView in
                     currentWebView = webView
                     startCookiePolling(entry: entry)
@@ -224,6 +214,7 @@ struct MacPlatformLoginWebSheet: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(.bar)
         }
+        }
     }
 
     // MARK: - Navigation
@@ -253,7 +244,7 @@ struct MacPlatformLoginWebSheet: View {
 
     private func pollCookieOnce(entry: LoginPlatformEntry) {
         guard !isSavingCookie, let currentWebView else { return }
-        let loginFlow = entry.loginFlow
+        guard let loginFlow = entry.loginFlow else { return }
 
         currentWebView.configuration.websiteDataStore.httpCookieStore.getAllCookies { cookies in
             let filteredCookies = cookies.filter { cookie in
@@ -283,7 +274,7 @@ struct MacPlatformLoginWebSheet: View {
         errorMessage = nil
         statusText = "检测到登录状态，正在保存..."
 
-        let uid = extractUID(from: cookies, loginFlow: entry.loginFlow)
+        let uid = entry.loginFlow.flatMap { extractUID(from: cookies, loginFlow: $0) }
         let shouldValidate = entry.auth?.supportsValidation ?? false
 
         let result = await PlatformSessionManager.shared.loginWithCookie(
@@ -345,7 +336,7 @@ struct MacPlatformLoginWebSheet: View {
     }
 
     private func extractUID(from cookies: [HTTPCookie], loginFlow: ManifestLoginFlow) -> String? {
-        let uidNames = loginFlow.uidCookieNames ?? ["DedeUserID", "uid", "user_id", "userId"]
+        let uidNames = loginFlow.uidCookieNames ?? []
         for name in uidNames {
             if let value = cookies.first(where: { $0.name == name })?.value, !value.isEmpty {
                 return value

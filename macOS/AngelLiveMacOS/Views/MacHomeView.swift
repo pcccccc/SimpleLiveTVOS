@@ -124,6 +124,7 @@ struct MacHomeView: View {
         }
         .navigationDestination(for: PluginHomeCategoryRoute.self) { route in
             MacHomeCategoryView(route: route)
+                .apiCredentialContentIdentity(pluginId: route.pluginId)
         }
         .modifier(
             MacHomeRefreshRegistration(

@@ -14,6 +14,7 @@ struct AdaptiveSearchView: View {
     var body: some View {
         if pluginAvailability.hasAvailablePlugins {
             SearchView()
+                .apiCredentialContentIdentity()
         } else {
             EmptyView()
         }

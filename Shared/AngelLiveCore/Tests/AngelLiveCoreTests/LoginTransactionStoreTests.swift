@@ -1754,6 +1754,41 @@ struct LoginTransactionStoreTests {
         #expect(Set(bodies).count == 3)
     }
 
+    @Test("API credential HTTP stops redirects and bypasses response coalescing")
+    func apiCredentialHTTPIsolation() async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [LoginTransactionURLProtocol.self]
+        let session = URLSession(configuration: configuration)
+        defer { session.invalidateAndCancel() }
+        let runtime = JSRuntime(pluginId: "fixture.plugin", session: session)
+        await runtime.beginSensitiveLoggingSuppression(apiTokenSession: true)
+        try await runtime.evaluate(script: """
+            globalThis.LiveParsePlugin = {
+              apiVersion: 1,
+              async probe(input) {
+                const redirect = await Host.http.request({
+                  url: 'https://login-transaction.invalid/manual-redirect',
+                  authMode: 'none', followRedirects: false,
+                  headers: { Authorization: 'Bearer fixture-secret' }
+                });
+                const options = {
+                  url: 'https://login-transaction.invalid/unique', authMode: 'none',
+                  headers: { Authorization: 'Bearer fixture-secret' },
+                  singleFlightKey: 'api-cache-key', successCacheTTLms: 60000
+                };
+                const pair = await Promise.all([Host.http.request(options), Host.http.request(options)]);
+                const third = await Host.http.request(options);
+                return {status: redirect.status, bodies: [pair[0].bodyText, pair[1].bodyText, third.bodyText]};
+              }
+            };
+            """)
+        let response = try #require(try await runtime.callPluginFunction(name: "probe") as? [String: Any])
+        #expect(response["status"] as? Int == 302)
+        let bodies = try #require(response["bodies"] as? [String])
+        #expect(Set(bodies).count == 3)
+        await runtime.retireCredentialGeneration()
+    }
+
     @Test("discarded transactions reject late response absorption")
     func discardedTransactionRejectsLateAbsorption() async throws {
         let store = LoginTransactionStore()

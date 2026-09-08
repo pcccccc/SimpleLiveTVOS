@@ -22,7 +22,7 @@ private enum TVHomeRecommendationAvailability {
 struct ContentView: View {
     
     var appViewModel: AppState
-    var searchLiveViewModel: LiveViewModel
+    @State private var searchLiveViewModel: LiveViewModel
     var favoriteLiveViewModel: LiveViewModel
 
     @State private var showPluginSyncPrompt = false
@@ -50,6 +50,11 @@ struct ContentView: View {
 
         rootTabView(selection: $contentVM.selection)
         .environment(appViewModel.consentService)
+        .platformAPICredentialLifecycle(enabled: presentsFullUI)
+        .onChange(of: PlatformAPITokenService.shared.contentRevision) { _, _ in
+            guard presentsFullUI else { return }
+            searchLiveViewModel = LiveViewModel(roomListType: .search, liveType: .placeholder, appViewModel: appViewModel)
+        }
         .onAppear {
             Task {
                 // 启动时拉取 key 映射（后台静默，不阻塞 UI）
@@ -197,6 +202,7 @@ struct ContentView: View {
         TabView(selection: selection) {
             if shouldShowHomeTab {
                 TVHomeView(appViewModel: appViewModel)
+                    .apiCredentialContentIdentity()
                     .tabItem {
                         Label("推荐", systemImage: "house.fill")
                     }
@@ -247,6 +253,7 @@ struct ContentView: View {
 
             if presentsFullUI {
                 SearchRoomView()
+                    .apiCredentialContentIdentity()
                     .tabItem {
                         Label("搜索", systemImage: "magnifyingglass")
                     }

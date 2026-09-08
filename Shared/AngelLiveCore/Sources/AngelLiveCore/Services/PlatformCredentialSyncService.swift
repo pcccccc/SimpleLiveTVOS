@@ -704,7 +704,7 @@ public final class PlatformCredentialSyncService: ObservableObject {
     /// 从 cookie 字符串提取 UID（根据 manifest loginFlow.uidCookieNames）
     private func extractUid(from cookie: String, pluginId: String) -> String? {
         // 常见 uid cookie 名作为 fallback
-        let fallbackUidNames = ["DedeUserID", "uid", "user_id", "userId"]
+        let fallbackUidNames: [String] = []
         let uidNames = fallbackUidNames
 
         let pairs = cookie.components(separatedBy: "; ")
@@ -722,7 +722,7 @@ public final class PlatformCredentialSyncService: ObservableObject {
     /// 异步版本：从 manifest 获取 uidCookieNames 后提取 UID
     public func extractUidAsync(from cookie: String, pluginId: String) async -> String? {
         if let entry = await PlatformLoginRegistry.shared.entry(pluginId: pluginId),
-           let names = entry.loginFlow.uidCookieNames, !names.isEmpty {
+           let names = entry.loginFlow?.uidCookieNames, !names.isEmpty {
             let pairs = cookie.components(separatedBy: "; ")
             for name in names {
                 for pair in pairs {

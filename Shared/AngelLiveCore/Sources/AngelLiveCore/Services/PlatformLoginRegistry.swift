@@ -3,11 +3,25 @@
 //  AngelLiveCore
 //
 //  数据驱动的平台登录注册表。
-//  从已安装/内置插件的 manifest.loginFlow 字段构建可登录平台列表，
+//  从生效插件的 auth、loginFlow 和 loginChallenge 构建凭据配置入口，
 //  宿主端 UI 基于此枚举显示登录选项，而不再依赖硬编码平台 enum。
 //
 
 import Foundation
+
+public enum PlatformLoginMethod: String, Sendable, CaseIterable, Identifiable {
+    case clientCredentials, apiToken, qrCode, web, manualCookie
+    public var id: String { rawValue }
+    public var title: String {
+        switch self {
+        case .clientCredentials: "Client ID 与 Client Secret"
+        case .apiToken: "自定义 API 凭据"
+        case .qrCode: "扫码登录"
+        case .web: "网页登录"
+        case .manualCookie: "手动输入 Cookie"
+        }
+    }
+}
 
 /// 登录注册表条目。
 public struct LoginPlatformEntry: Sendable, Equatable, Identifiable {
@@ -17,7 +31,7 @@ public struct LoginPlatformEntry: Sendable, Equatable, Identifiable {
     /// 关联的 liveType rawValue（取 manifest.liveTypes 首项），用于 UI 查图标。
     public let liveType: String
     /// manifest.loginFlow
-    public let loginFlow: ManifestLoginFlow
+    public let loginFlow: ManifestLoginFlow?
     /// manifest.loginChallenge；仅透传显式声明，不从其他字段推断。
     public let loginChallenge: ManifestLoginChallenge?
     /// manifest.auth（可空）
@@ -27,11 +41,36 @@ public struct LoginPlatformEntry: Sendable, Equatable, Identifiable {
 
     public var id: String { pluginId }
 
+    public var supportsAPIToken: Bool { auth?.credentialKinds?.contains("token") == true }
+    public var supportsClientCredentials: Bool { auth?.credentialKinds?.contains("client_credentials") == true }
+    public var supportsAPICredentials: Bool { supportsAPIToken || supportsClientCredentials }
+
+    public func methods(for platform: LoginChallengeHostPlatform) -> [PlatformLoginMethod] {
+        var result: [PlatformLoginMethod] = []
+        if platform == .iOS && supportsClientCredentials { result.append(.clientCredentials) }
+        if supportsAPIToken { result.append(.apiToken) }
+        if loginChallenge?.isSupportedByCurrentHost == true { result.append(.qrCode) }
+        if let loginFlow, loginFlow.kind == nil || loginFlow.kind == "webview" {
+            if platform != .tvOS { result.append(.web) }
+            else { result.append(.manualCookie) }
+        }
+        return result
+    }
+
+    public func preferredMethod(for platform: LoginChallengeHostPlatform, isLoggedIn: Bool, allowsPreferredQRCode: Bool = true) -> PlatformLoginMethod? {
+        let available = methods(for: platform)
+        if available.contains(.clientCredentials) { return .clientCredentials }
+        if available.contains(.apiToken) { return .apiToken }
+        if !isLoggedIn, allowsPreferredQRCode, loginChallenge?.prefers(platform) == true, available.contains(.qrCode) { return .qrCode }
+        if available.contains(.web) { return .web }
+        return available.first
+    }
+
     public init(
         pluginId: String,
         displayName: String,
         liveType: String,
-        loginFlow: ManifestLoginFlow,
+        loginFlow: ManifestLoginFlow? = nil,
         loginChallenge: ManifestLoginChallenge? = nil,
         auth: ManifestAuth?,
         version: String
@@ -55,24 +94,35 @@ public actor PlatformLoginRegistry {
         self.pluginManager = pluginManager
     }
 
-    /// 读取当前所有已安装/内置插件中声明了 loginFlow 的平台。
-    public func availablePlatforms() -> [LoginPlatformEntry] {
+    /// 读取生效插件中具有宿主支持的凭据配置方式的平台。
+    public func availablePlatforms(for platform: LoginChallengeHostPlatform? = nil) -> [LoginPlatformEntry] {
+        let currentPlatform: LoginChallengeHostPlatform
+        #if os(iOS)
+        currentPlatform = .iOS
+        #elseif os(tvOS)
+        currentPlatform = .tvOS
+        #else
+        currentPlatform = .macOS
+        #endif
         let manifests = discoverAllManifests()
         var entries: [LoginPlatformEntry] = []
         for manifest in manifests {
-            guard let loginFlow = manifest.loginFlow else { continue }
+            guard manifest.loginFlow != nil || manifest.loginChallenge?.isSupportedByCurrentHost == true
+                    || manifest.auth?.credentialKinds?.contains(where: { ["token", "client_credentials"].contains($0) }) == true else { continue }
             let liveType = manifest.liveTypes.first ?? manifest.pluginId
             let displayName = manifest.displayName ?? manifest.pluginId
             let entry = LoginPlatformEntry(
                 pluginId: manifest.pluginId,
                 displayName: displayName,
                 liveType: liveType,
-                loginFlow: loginFlow,
+                loginFlow: manifest.loginFlow,
                 loginChallenge: manifest.loginChallenge,
                 auth: manifest.auth,
                 version: manifest.version
             )
-            entries.append(entry)
+            if !entry.methods(for: platform ?? currentPlatform).isEmpty {
+                entries.append(entry)
+            }
         }
         return entries.sorted { $0.displayName < $1.displayName }
     }

@@ -60,6 +60,7 @@ struct TVHomeView: View {
             .ignoresSafeArea()
             .navigationDestination(for: PluginHomeCategoryRoute.self) { route in
                 TVHomeCategoryView(route: route, appViewModel: appViewModel)
+                    .apiCredentialContentIdentity(pluginId: route.pluginId)
             }
             .toolbar(.hidden, for: .navigationBar)
         }

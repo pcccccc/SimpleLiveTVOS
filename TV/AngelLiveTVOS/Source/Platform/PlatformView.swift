@@ -130,10 +130,10 @@ struct PlatformView: View {
                         Color("sl-background", bundle: nil)
                     )
                     .safeAreaPadding(.all)
-                    .id(liveType)
+                    .id("\(liveType.rawValue)-\(PlatformAPITokenService.shared.contentRevision)")
             } else {
                 ListMainView(liveType: liveType, appViewModel: appViewModel)
-                    .id(liveType)
+                    .id("\(liveType.rawValue)-\(PlatformAPITokenService.shared.contentRevision)")
             }
         }
     }

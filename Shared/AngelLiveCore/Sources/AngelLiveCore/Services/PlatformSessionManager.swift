@@ -37,19 +37,31 @@ public struct CredentialStatus: Codable, Sendable {
     public let userId: String?
     public let userName: String?
     public let message: String?
+    public let clientId: String?
+    public let credentialKind: String?
+    public let authorizationType: String?
+    public let tokenType: String?
 
     public init(
         state: String,
         expireAt: Double? = nil,
         userId: String? = nil,
         userName: String? = nil,
-        message: String? = nil
+        message: String? = nil,
+        clientId: String? = nil,
+        credentialKind: String? = nil,
+        authorizationType: String? = nil,
+        tokenType: String? = nil
     ) {
         self.state = state
         self.expireAt = expireAt
         self.userId = userId
         self.userName = userName
         self.message = message
+        self.clientId = clientId
+        self.credentialKind = credentialKind
+        self.authorizationType = authorizationType
+        self.tokenType = tokenType
     }
 }
 

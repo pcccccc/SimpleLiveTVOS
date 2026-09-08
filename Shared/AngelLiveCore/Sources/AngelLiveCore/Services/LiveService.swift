@@ -8,6 +8,13 @@ public enum LiveService {
             return []
         }
 
+        // Token plugins own credential-scoped caches and authorization checks.
+        // A host disk cache hit must never bypass those checks.
+        if await PlatformAPITokenVault.shared.isEnabled,
+           (try? LiveParsePlugins.shared.resolve(pluginId: platform.pluginId).manifest.auth?.credentialKinds?.contains(where: { ["token", "client_credentials"].contains($0) })) == true {
+            return try await ApiManager.fetchCategoryList(liveType: liveType)
+        }
+
         let diskConfig = DiskConfig(name: "Simple_Live_TV")
         let memoryConfig = MemoryConfig(expiry: .never, countLimit: 50, totalCostLimit: 50)
         let storage: Storage<String, [LiveMainListModel]> = try Storage<String, [LiveMainListModel]>(

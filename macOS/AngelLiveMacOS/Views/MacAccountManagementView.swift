@@ -13,7 +13,14 @@ struct MacAccountManagementView: View {
     @Environment(PluginAvailabilityService.self) private var pluginAvailability
 
     @State private var platforms: [LoginPlatformEntry] = []
-    @State private var selectedLoginPluginId: String?
+    @State private var methodSelection: LoginPlatformEntry?
+    @State private var selectedLogin: LoginPresentation?
+
+    private struct LoginPresentation: Identifiable {
+        let entry: LoginPlatformEntry
+        let method: PlatformLoginMethod
+        var id: String { "\(entry.pluginId):\(method.rawValue)" }
+    }
 
     var body: some View {
         Form {
@@ -37,8 +44,8 @@ struct MacAccountManagementView: View {
                     )
                 } else if platforms.isEmpty {
                     ErrorView.empty(
-                        title: "当前插件未配置网页登录",
-                        message: "已安装的插件没有声明网页登录流程，无法在此页登录。",
+                        title: "当前插件未配置登录方式",
+                        message: "已安装的插件没有声明可用的登录方式。",
                         symbolName: "person.crop.circle.badge.xmark",
                         tint: .secondary,
                         layout: .compact(minHeight: 180)
@@ -62,12 +69,12 @@ struct MacAccountManagementView: View {
             await loadPlatforms()
             await syncService.refreshAllLoginStatus()
         }
-        .sheet(item: selectedPlatformBinding, onDismiss: {
+        .sheet(item: $selectedLogin, onDismiss: {
             Task { await syncService.refreshAllLoginStatus() }
-        }) { entry in
+        }) { selection in
             MacPlatformLoginSheet(
-                entry: entry,
-                isLoggedIn: syncService.isLoggedIn(pluginId: entry.pluginId)
+                entry: selection.entry,
+                method: selection.method
             )
                 .frame(minWidth: 800, minHeight: 600)
         }
@@ -75,7 +82,12 @@ struct MacAccountManagementView: View {
 
     private func platformAccountRow(_ entry: LoginPlatformEntry) -> some View {
         Button {
-            selectedLoginPluginId = entry.pluginId
+            let methods = entry.methods(for: .macOS)
+            if methods.count > 1 {
+                methodSelection = entry
+            } else if let method = methods.first {
+                selectedLogin = LoginPresentation(entry: entry, method: method)
+            }
         } label: {
             PanelNavigationRow(
                 title: entry.displayName,
@@ -93,21 +105,30 @@ struct MacAccountManagementView: View {
                         .foregroundStyle(.secondary)
                 }
             } trailing: {
-                loginStatusBadge(syncService.isLoggedIn(pluginId: entry.pluginId))
+                if entry.supportsAPIToken {
+                    PlatformAPITokenStatusLabel(pluginId: entry.pluginId)
+                } else {
+                    loginStatusBadge(syncService.isLoggedIn(pluginId: entry.pluginId))
+                }
             }
         }
         .buttonStyle(.plain)
+        .confirmationDialog("选择登录方式", isPresented: methodSelectionBinding(for: entry), titleVisibility: .visible) {
+            ForEach(entry.methods(for: .macOS)) { method in
+                Button(method.title) {
+                    selectedLogin = LoginPresentation(entry: entry, method: method)
+                }
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text(entry.displayName)
+        }
     }
 
-    private var selectedPlatformBinding: Binding<LoginPlatformEntry?> {
+    private func methodSelectionBinding(for entry: LoginPlatformEntry) -> Binding<Bool> {
         Binding(
-            get: {
-                guard let id = selectedLoginPluginId else { return nil }
-                return platforms.first { $0.pluginId == id }
-            },
-            set: { newValue in
-                selectedLoginPluginId = newValue?.pluginId
-            }
+            get: { methodSelection?.pluginId == entry.pluginId },
+            set: { if !$0 { methodSelection = nil } }
         )
     }
 
@@ -117,7 +138,7 @@ struct MacAccountManagementView: View {
     }
 
     private func loginMethodDescription(for entry: LoginPlatformEntry) -> String {
-        entry.loginChallenge?.isSupportedByCurrentHost == true ? "支持扫码或网页登录" : "网页登录 Cookie 同步"
+        entry.methods(for: .macOS).map(\.title).joined(separator: " / ")
     }
 
     private func loginStatusBadge(_ isLoggedIn: Bool) -> some View {

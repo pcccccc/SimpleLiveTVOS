@@ -67,6 +67,7 @@ struct LiveParsePluginRuntimeLease: Sendable {
     let pluginId: String
     let version: String
     let credentialDomains: [String]
+    let credentialKinds: Set<String>
     fileprivate let plugin: LiveParseLoadedPlugin
     fileprivate let versionLeaseToken: LiveParsePluginVersionLeaseToken
 }
@@ -77,6 +78,7 @@ public final class LiveParsePluginManager: @unchecked Sendable {
     public let storage: LiveParsePluginStorage
     public let bundle: Bundle
     public let session: URLSession
+    let apiTokenVault: PlatformAPITokenVault
 
     private let logHandler: LogHandler?
     private let lock = NSLock()
@@ -88,10 +90,15 @@ public final class LiveParsePluginManager: @unchecked Sendable {
         try self.init(storage: LiveParsePluginStorage(), bundle: bundle, session: session, logHandler: logHandler)
     }
 
-    public init(storage: LiveParsePluginStorage, bundle: Bundle? = nil, session: URLSession = .shared, logHandler: LogHandler? = nil) {
+    public convenience init(storage: LiveParsePluginStorage, bundle: Bundle? = nil, session: URLSession = .shared, logHandler: LogHandler? = nil) {
+        self.init(storage: storage, bundle: bundle, session: session, logHandler: logHandler, apiTokenVault: .shared)
+    }
+
+    init(storage: LiveParsePluginStorage, bundle: Bundle? = nil, session: URLSession = .shared, logHandler: LogHandler? = nil, apiTokenVault: PlatformAPITokenVault) {
         self.storage = storage
         self.bundle = bundle ?? .main
         self.session = session
+        self.apiTokenVault = apiTokenVault
         self.logHandler = logHandler
         self.state = storage.loadState()
     }
@@ -229,6 +236,7 @@ public final class LiveParsePluginManager: @unchecked Sendable {
             pluginId: plugin.manifest.pluginId,
             version: plugin.manifest.version,
             credentialDomains: plugin.manifest.hostManagedCredentialDomains,
+            credentialKinds: Set(plugin.manifest.auth?.credentialKinds ?? []),
             plugin: plugin,
             versionLeaseToken: LiveParsePluginVersionLeaseToken(
                 pluginId: plugin.manifest.pluginId,
@@ -288,9 +296,32 @@ public final class LiveParsePluginManager: @unchecked Sendable {
             return ["ok": true, "managedByHost": true, "hasCookie": false]
         }
 
+        var payload = payload
+        let selectedPlugin = try runtimeLease?.plugin ?? resolve(pluginId: pluginId)
+        let tokenPlugin = selectedPlugin.manifest.auth?.credentialKinds?.contains(where: { ["token", "client_credentials"].contains($0) }) == true
+        let tokenFeatureEnabled = await apiTokenVault.isEnabled
+        let tokenEnabled = tokenPlugin && (isolatedPlatformSession != nil || tokenFeatureEnabled)
+        var tokenSnapshot: PlatformAPITokenVault.Snapshot?
+        if tokenEnabled, isolatedPlatformSession == nil {
+            // Callers cannot override committed API credentials or send them to playback/danmaku.
+            payload.removeValue(forKey: "apiToken")
+            payload.removeValue(forKey: "clientId")
+            payload.removeValue(forKey: "clientSecret")
+            if APITokenCallPolicy.functions.contains(function) {
+                let snapshot = try await apiTokenVault.snapshot(pluginId: pluginId)
+                tokenSnapshot = snapshot
+                if let record = snapshot.record {
+                    for (key, value) in record.payload { payload[key] = value }
+                }
+            } else {
+                tokenSnapshot = await apiTokenVault.generationSnapshot(pluginId: pluginId)
+            }
+        }
+
         // 开发者控制台关闭时完全跳过记录。收藏批量刷新会并发调用上百次，
         // 即使 UI 不展示，无条件写 @Observable entries 仍会造成主 actor 压力。
         let sensitivePluginCall = sensitive
+            || tokenEnabled
             || Self.isSensitivePluginFunction(function)
             || Self.containsSensitiveConsoleValue(payload)
         let console = PluginConsoleService.shared
@@ -353,12 +384,28 @@ public final class LiveParsePluginManager: @unchecked Sendable {
                 plugin = selected
             }
             if sensitivePluginCall {
-                await plugin.runtime.beginSensitiveLoggingSuppression()
+                await plugin.runtime.beginSensitiveLoggingSuppression(
+                    apiTokenSession: tokenEnabled,
+                    loginDiagnosticSecrets: tokenEnabled && isolatedPlatformSession != nil && function == "validateCredential"
+                        ? [payload["apiToken"] as? String, payload["clientSecret"] as? String].compactMap { $0 } : []
+                )
             }
             do {
+                if let tokenSnapshot {
+                    try await apiTokenVault.register(plugin.runtime, pluginId: pluginId, generation: tokenSnapshot.generation)
+                }
                 try await plugin.load()
-                let result = try await plugin.runtime.callPluginFunction(name: function, payload: payload)
-                if sensitivePluginCall {
+                let result = try await plugin.runtime.callPluginFunction(name: function, payload: payload, checkSynchronousException: tokenEnabled)
+                if tokenEnabled, !JSONSerialization.isValidJSONObject(result) {
+                    throw LiveParsePluginError.invalidReturnValue("API 插件返回了无效响应。")
+                }
+                if tokenEnabled, isolatedPlatformSession != nil {
+                    await plugin.runtime.retireCredentialGeneration()
+                }
+                if let tokenSnapshot {
+                    try await apiTokenVault.check(pluginId: pluginId, generation: tokenSnapshot.generation)
+                }
+                if sensitivePluginCall && !tokenEnabled {
                     await plugin.runtime.endSensitiveLoggingSuppression()
                 }
 
@@ -402,6 +449,9 @@ public final class LiveParsePluginManager: @unchecked Sendable {
                 }
                 return result
             } catch {
+                if tokenEnabled, isolatedPlatformSession != nil {
+                    await plugin.runtime.retireCredentialGeneration()
+                }
                 if sensitivePluginCall {
                     if error is CancellationError {
                         // A JavaScript Promise cannot be force-cancelled. Its
@@ -410,7 +460,7 @@ public final class LiveParsePluginManager: @unchecked Sendable {
                         // future calls resolve a fresh runtime.
                         await plugin.runtime.abandonInFlightOperations()
                         evict(pluginId: pluginId, ifRuntime: plugin.runtime)
-                    } else {
+                    } else if !tokenEnabled {
                         await plugin.runtime.endSensitiveLoggingSuppression()
                     }
                 }
@@ -449,7 +499,17 @@ public final class LiveParsePluginManager: @unchecked Sendable {
                         : error.localizedDescription
                 )
             }
-            throw error
+            if let tokenSnapshot, self === LiveParsePlugins.shared,
+               case let LiveParsePluginError.standardized(value) = error, value.code == .authRequired {
+                let reason = value.context["reason"] ?? ""
+                if ["api_token_invalid", "api_token_expired", "api_token_revoked"].contains(reason) {
+                    await PlatformAPITokenService.shared.recordUnavailable(
+                        pluginId: pluginId, generation: tokenSnapshot.generation,
+                        state: reason == "api_token_expired" ? "expired" : "invalid"
+                    )
+                }
+            }
+            throw tokenEnabled ? APITokenCallPolicy.safeError(error) : error
         }
     }
 

@@ -249,6 +249,7 @@ private extension HomeView {
                 navigationState: navigationState,
                 namespace: roomTransitionNamespace
             )
+            .apiCredentialContentIdentity(pluginId: route.pluginId)
         }
     }
 

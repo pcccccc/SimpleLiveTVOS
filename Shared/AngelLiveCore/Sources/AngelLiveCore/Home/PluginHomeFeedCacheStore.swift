@@ -84,6 +84,10 @@ public actor PluginHomeFeedCacheStore {
             return false
         }
     }
+
+    public func remove(pluginId: String) {
+        save(load().filter { $0.pluginId != pluginId })
+    }
 }
 
 private extension PluginHomeFeedCacheStore {
