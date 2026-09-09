@@ -16,6 +16,8 @@ struct FavoriteListViewControllerWrapper: UIViewControllerRepresentable {
     let searchText: String
     let navigationState: LiveRoomNavigationState
     let namespace: Namespace.ID
+    let onPullDistanceChange: (CGFloat) -> Void
+    let onRefreshChange: (Bool) -> Void
 
     /// 触发 SwiftUI 感知 viewModel 变化的计算属性
     private var dataVersion: Int {
@@ -26,6 +28,13 @@ struct FavoriteListViewControllerWrapper: UIViewControllerRepresentable {
         Coordinator()
     }
 
+    static func dismantleUIViewController(_ uiViewController: FavoriteListViewController, coordinator: Coordinator) {
+        coordinator.invalidate()
+        uiViewController.cancelPendingRefresh()
+        uiViewController.onPullDistanceChange = nil
+        uiViewController.onRefreshChange = nil
+    }
+
     func makeUIViewController(context: Context) -> FavoriteListViewController {
         let vc = FavoriteListViewController(
             viewModel: viewModel,
@@ -33,12 +42,19 @@ struct FavoriteListViewControllerWrapper: UIViewControllerRepresentable {
             namespace: namespace
         )
         vc.toastPresenter = { presentToast($0) }
+        context.coordinator.onPullDistanceChange = onPullDistanceChange
+        vc.onPullDistanceChange = { [weak coordinator = context.coordinator] distance in
+            coordinator?.reportPull(distance)
+        }
+        vc.onRefreshChange = onRefreshChange
         return vc
     }
 
     func updateUIViewController(_ uiViewController: FavoriteListViewController, context: Context) {
         // presentToast 的 PresentToastAction 是值类型,刷新时同步最新引用
         uiViewController.toastPresenter = { presentToast($0) }
+        context.coordinator.onPullDistanceChange = onPullDistanceChange
+        uiViewController.onRefreshChange = onRefreshChange
         // 当应用在后台时跳过 UI 更新，避免 iOS 18 的 DiffableDataSource 崩溃
         guard scenePhase == .active else { return }
 
@@ -101,9 +117,31 @@ func syncStatusID(_ status: CloudSyncStatus) -> Int {
 }
 
 extension FavoriteListViewControllerWrapper {
-    final class Coordinator {
+    @MainActor final class Coordinator {
         var lastSearchText: String = ""
         var lastListVersion: Int = -1
         var lastSignature: ViewStateSignature?
+        var onPullDistanceChange: ((CGFloat) -> Void)?
+        private var lastPull: CGFloat = 0
+        private var pullTask: Task<Void, Never>?
+
+        func invalidate() {
+            pullTask?.cancel()
+            pullTask = nil
+            onPullDistanceChange = nil
+        }
+
+        func reportPull(_ distance: CGFloat) {
+            guard abs(distance - lastPull) >= 0.5 else { return }
+            lastPull = distance
+            pullTask?.cancel()
+            // Layout can synchronously invoke the scroll delegate during a
+            // representable update. Coalesce and publish after that pass.
+            pullTask = Task { @MainActor [weak self] in
+                await Task.yield()
+                guard !Task.isCancelled else { return }
+                self?.onPullDistanceChange?(distance)
+            }
+        }
     }
 }

@@ -23,6 +23,8 @@ struct HomeView: View {
     @State private var viewModel = HomeViewModel()
     @State private var navigationState = LiveRoomNavigationState()
     @State private var homeNavigationModel = HomeNavigationModel()
+    @State private var isPullRefreshing = false
+    @State private var refreshCycle = 0
     @Namespace private var roomTransitionNamespace
 
     init(usesPersistedPlatformSelection: Bool = true) {
@@ -99,6 +101,12 @@ private extension HomeView {
                         visibleSectionIDs: visibleSectionIDs,
                         topSafeAreaInset: geometry.safeAreaInsets.top,
                         model: homeNavigationModel
+                    )
+
+                    LiquidRefreshIndicator(
+                        pullDistance: homeNavigationModel.pullDistance,
+                        isRefreshing: isPullRefreshing,
+                        refreshCycle: refreshCycle
                     )
                 }
             }
@@ -240,7 +248,8 @@ private extension HomeView {
             }
             .padding(.bottom, 128)
             .background(
-                HomeScrollOffsetProbe(onChange: homeNavigationModel.updateScrollMetrics)
+                HomeScrollOffsetProbe(onChange: homeNavigationModel.updateScrollMetrics,
+                                      releaseGate: homeNavigationModel.refreshGate)
                     .frame(width: 0, height: 0)
             )
         }
@@ -252,6 +261,7 @@ private extension HomeView {
         .toolbar(.hidden, for: .navigationBar)
         .ignoresSafeArea(edges: .top)
         .refreshable {
+            guard await homeNavigationModel.refreshGate.waitForRelease() else { return }
             await refreshAll()
         }
         .navigationDestination(for: HomeCategoryRoute.self) { route in
@@ -334,6 +344,10 @@ private extension HomeView {
 
     @MainActor
     func refreshAll() async {
+        guard !isPullRefreshing else { return }
+        isPullRefreshing = true
+        refreshCycle += 1
+        defer { isPullRefreshing = false }
         await viewModel.refresh(
             installedPluginIds: pluginAvailability.installedPluginIds,
             availabilityConfirmed: pluginAvailability.hasCheckedAvailability
@@ -378,9 +392,10 @@ private enum HomeNavigationSectionID {
 /// gesture.
 private struct HomeScrollOffsetProbe: UIViewRepresentable {
     let onChange: (CGFloat, CGFloat) -> Void
+    let releaseGate: PullRefreshReleaseGate
 
     func makeUIView(context: Context) -> HomeScrollOffsetProbeView {
-        HomeScrollOffsetProbeView(onChange: onChange)
+        HomeScrollOffsetProbeView(onChange: onChange, releaseGate: releaseGate)
     }
 
     func updateUIView(_ uiView: HomeScrollOffsetProbeView, context: Context) {
@@ -390,13 +405,15 @@ private struct HomeScrollOffsetProbe: UIViewRepresentable {
 
 private final class HomeScrollOffsetProbeView: UIView {
     var onChange: (CGFloat, CGFloat) -> Void
+    private let releaseGate: PullRefreshReleaseGate
 
     private weak var observedScrollView: UIScrollView?
     private var offsetObservation: NSKeyValueObservation?
     private var insetObservation: NSKeyValueObservation?
 
-    init(onChange: @escaping (CGFloat, CGFloat) -> Void) {
+    init(onChange: @escaping (CGFloat, CGFloat) -> Void, releaseGate: PullRefreshReleaseGate) {
         self.onChange = onChange
+        self.releaseGate = releaseGate
         super.init(frame: .zero)
         isUserInteractionEnabled = false
         backgroundColor = .clear
@@ -423,6 +440,7 @@ private final class HomeScrollOffsetProbeView: UIView {
 
         stopObserving()
         observedScrollView = scrollView
+        releaseGate.scrollView = scrollView
 
         offsetObservation = scrollView.observe(
             \.contentOffset,
@@ -447,6 +465,7 @@ private final class HomeScrollOffsetProbeView: UIView {
     }
 
     private func stopObserving() {
+        releaseGate.scrollView = nil
         offsetObservation = nil
         insetObservation = nil
         observedScrollView = nil
@@ -480,6 +499,7 @@ private struct HomeNavigationSectionPosition: Equatable {
 @MainActor
 @Observable
 private final class HomeNavigationModel {
+    @ObservationIgnored let refreshGate = PullRefreshReleaseGate()
     /// Travel from the feed's resting position: zero at rest, positive while
     /// scrolled up. Measured against `adjustedContentInset` so the bar does not
     /// flicker when the refresh control installs its own inset.
@@ -865,6 +885,18 @@ private struct HomeHeroCarousel: View {
         CGSize(width: viewportWidth, height: cardHeight)
     }
 
+    private var pullExtension: CGFloat {
+        reduceMotion ? 0 : metrics.pullDistance
+    }
+
+    private var displayedCardHeight: CGFloat {
+        cardHeight + pullExtension
+    }
+
+    private var isPulling: Bool {
+        metrics.pullDistance > 1
+    }
+
     private var loopPages: [HomeHeroLoopPage] {
         guard !entries.isEmpty else { return [] }
         let index = entries.firstIndex { $0.id == currentBannerID } ?? 0
@@ -886,16 +918,13 @@ private struct HomeHeroCarousel: View {
     }
 
     var body: some View {
-        let resolvedCardHeight = cardHeight
-        let pullDownEnabled = !reduceMotion
-
         ZStack(alignment: .bottomTrailing) {
             ScrollView(.horizontal) {
                 HStack(spacing: cardSpacing) {
                     ForEach(loopPages) { page in
                         heroPage(for: page.entry)
                             .id(page.entry.id)
-                            .frame(width: viewportWidth, height: cardHeight)
+                            .frame(width: viewportWidth, height: displayedCardHeight)
                             .id(page.id)
                     }
                 }
@@ -908,7 +937,7 @@ private struct HomeHeroCarousel: View {
             .scrollPosition(id: $selectedPageID, anchor: .center)
             .scrollTargetBehavior(.paging)
             .scrollIndicators(.hidden)
-            .frame(width: viewportWidth, height: cardHeight)
+            .frame(width: viewportWidth, height: displayedCardHeight)
             .background(AppConstants.Colors.primaryBackground)
 
             if entries.count > 1 {
@@ -922,18 +951,13 @@ private struct HomeHeroCarousel: View {
                     .padding(.bottom, AppConstants.Spacing.xxl)
             }
         }
+        // Extend the image viewport, rather than distorting the entire page.
+        // Counter-offset tracks the live scroll through refresh and settling;
+        // the outer layout height stays fixed, so this cannot feed back into it.
+        .frame(height: displayedCardHeight, alignment: .top)
+        .offset(y: -pullExtension)
         .frame(height: cardHeight, alignment: .top)
         .frame(maxWidth: .infinity)
-        // Stretch only on the vertical axis. The bottom anchor cancels the
-        // scroll view's positive bounce exactly, keeping the visual top at the
-        // screen edge without enlarging every offscreen carousel page.
-        .scaleEffect(
-            x: 1,
-            y: pullDownEnabled
-                ? 1 + metrics.pullDistance / max(resolvedCardHeight, 1)
-                : 1,
-            anchor: .bottom
-        )
         .onAppear(perform: normalizeSelection)
         .onChange(of: entries.map(\.id)) { _, _ in normalizeSelection() }
         .onChange(of: selectedPageID) { _, _ in
@@ -954,7 +978,7 @@ private struct HomeHeroCarousel: View {
     }
 
     private var autoplayTaskID: String {
-        "\(entries.map(\.id).joined(separator: "|"))::\(currentBannerID ?? "")::\(scenePhase)::\(reduceMotion)::\(isScrolling)::\(needsLayoutCorrection)::\(layoutGeneration)"
+        "\(entries.map(\.id).joined(separator: "|"))::\(currentBannerID ?? "")::\(scenePhase)::\(reduceMotion)::\(isScrolling)::\(isPulling)::\(needsLayoutCorrection)::\(layoutGeneration)"
     }
 
     private func normalizeSelection() {
@@ -1037,7 +1061,7 @@ private struct HomeHeroCarousel: View {
     @MainActor
     private func runAutoplayIfNeeded() async {
         let canAutoplay = entries.count > 1 && scenePhase == .active && !reduceMotion
-            && !isScrolling && !needsLayoutCorrection
+            && !isScrolling && !isPulling && !needsLayoutCorrection
         var resetTransaction = Transaction()
         resetTransaction.disablesAnimations = true
         withTransaction(resetTransaction) {
@@ -1057,7 +1081,7 @@ private struct HomeHeroCarousel: View {
             return
         }
 
-        guard !Task.isCancelled, !isScrolling, !needsLayoutCorrection,
+        guard !Task.isCancelled, !isScrolling, !isPulling, !needsLayoutCorrection,
               selectedPageID == 1 else { return }
         // Mark motion before changing the binding so its onChange cannot
         // rebase a programmatic page turn before the animation starts.
@@ -1070,7 +1094,7 @@ private struct HomeHeroCarousel: View {
     @ViewBuilder
     private func heroPage(for entry: HomeBannerEntry) -> some View {
         heroDestination(for: entry)
-            .frame(width: cardWidth, height: cardHeight)
+            .frame(width: cardWidth, height: displayedCardHeight)
             .clipped()
     }
 
@@ -1082,7 +1106,8 @@ private struct HomeHeroCarousel: View {
                 HomeHeroCard(
                     entry: entry,
                     cardWidth: cardWidth,
-                    cardHeight: cardHeight,
+                    cardHeight: displayedCardHeight,
+                    imageDecodeHeight: cardHeight,
                     pageInset: pageInset,
                     cardSpacing: cardSpacing,
                     topSafeAreaInset: topSafeAreaInset,
@@ -1103,7 +1128,8 @@ private struct HomeHeroCarousel: View {
                 HomeHeroCard(
                     entry: entry,
                     cardWidth: cardWidth,
-                    cardHeight: cardHeight,
+                    cardHeight: displayedCardHeight,
+                    imageDecodeHeight: cardHeight,
                     pageInset: pageInset,
                     cardSpacing: cardSpacing,
                     topSafeAreaInset: topSafeAreaInset,
@@ -1125,6 +1151,7 @@ private struct HomeHeroCard: View {
     let entry: HomeBannerEntry
     let cardWidth: CGFloat
     let cardHeight: CGFloat
+    let imageDecodeHeight: CGFloat
     let pageInset: CGFloat
     let cardSpacing: CGFloat
     let topSafeAreaInset: CGFloat
@@ -1143,7 +1170,9 @@ private struct HomeHeroCard: View {
             HomeHeroRemoteImage(
                 url: preferredImageURL,
                 fallbackURL: fallbackImageURL,
-                targetSize: CGSize(width: cardWidth, height: cardHeight),
+                // A stable decode size avoids a new image-processing cache key
+                // on every drag frame; only the presentation viewport grows.
+                targetSize: CGSize(width: cardWidth, height: imageDecodeHeight),
                 presentationScale: imageScale
             )
                 .frame(width: cardWidth, height: cardHeight)
@@ -1336,6 +1365,7 @@ private struct HomeHeroRemoteImage: View {
     let presentationScale: CGFloat
 
     @Environment(\.displayScale) private var displayScale
+    @State private var imageFailed = false
 
     /// Kingfisher's downsampler uses the largest requested dimension. Banner
     /// sources are normally 16:9, while the immersive hero is much taller, so
@@ -1361,24 +1391,61 @@ private struct HomeHeroRemoteImage: View {
                 .scaleFactor(displayScale)
                 .cacheOriginalImage()
                 .alternativeSources(fallbackURL.map { [.network($0)] })
+                .onFailure { _ in imageFailed = true }
+                .onSuccess { _ in imageFailed = false }
                 .placeholder { placeholder }
                 .fade(duration: 0.2)
                 .resizable()
                 .interpolation(.high)
                 .scaledToFill()
+                .onChange(of: url) { _, _ in imageFailed = false }
         } else {
             placeholder
         }
     }
 
     private var placeholder: some View {
+        HomeHeroImageSkeleton(isLoading: url != nil && !imageFailed)
+    }
+}
+
+private struct HomeHeroImageSkeleton: View {
+    var isLoading = true
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+
+    var body: some View {
         Rectangle()
-            .fill(AppConstants.Colors.placeholderGradient())
+            .fill(AppConstants.Colors.secondaryBackground)
             .overlay {
-                Image(systemName: "sparkles.tv.fill")
-                    .font(.title2)
-                    .foregroundStyle(AppConstants.Colors.placeholderText)
+                LinearGradient(
+                    colors: [
+                        Color.secondary.opacity(0.05),
+                        Color.secondary.opacity(0.14),
+                        Color.secondary.opacity(0.05)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .shimmering(
+                    active: isLoading && !reduceMotion && scenePhase == .active,
+                    duration: 1.8,
+                    delay: 0
+                )
             }
+            .overlay {
+                LinearGradient(
+                    stops: [
+                        .init(color: .clear, location: 0.55),
+                        .init(color: AppConstants.Colors.primaryBackground.opacity(0.7), location: 0.84),
+                        .init(color: AppConstants.Colors.primaryBackground, location: 1)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
+            .clipped()
+            .accessibilityHidden(true)
     }
 }
 
@@ -1490,6 +1557,9 @@ private struct HomeHeroLoadingCard: View {
     let containerWidth: CGFloat
     let topSafeAreaInset: CGFloat
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+
     private var viewportWidth: CGFloat {
         max(containerWidth, 280)
     }
@@ -1499,68 +1569,32 @@ private struct HomeHeroLoadingCard: View {
     }
 
     var body: some View {
-        ZStack {
-            LinearGradient(
-                colors: [
-                    AppConstants.Colors.secondaryBackground,
-                    AppConstants.Colors.tertiaryBackground,
-                    AppConstants.Colors.primaryBackground
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+        ZStack(alignment: .bottomLeading) {
+            HomeHeroImageSkeleton()
 
-            RadialGradient(
-                colors: [Color.secondary.opacity(0.12), .clear],
-                center: .topTrailing,
-                startRadius: 12,
-                endRadius: cardHeight * 0.78
-            )
-
-            LinearGradient(
-                stops: [
-                    .init(color: .clear, location: 0.58),
-                    .init(color: AppConstants.Colors.primaryBackground.opacity(0.74), location: 0.88),
-                    .init(color: AppConstants.Colors.primaryBackground, location: 1)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-
-            VStack(spacing: 0) {
-                HStack {
-                    Capsule()
-                        .fill(Color.secondary.opacity(0.16))
-                        .frame(width: 116, height: 44)
-                    Spacer(minLength: 0)
-                }
-                .padding(.top, topSafeAreaInset + AppConstants.Spacing.sm)
-                .padding(.horizontal, AppConstants.Spacing.xl)
-
-                Spacer(minLength: cardHeight * 0.36)
-
-                VStack(spacing: 12) {
+            HStack(alignment: .bottom, spacing: 20) {
+                VStack(alignment: .leading, spacing: 9) {
                     RoundedRectangle(cornerRadius: 7, style: .continuous)
                         .fill(Color.secondary.opacity(0.18))
-                        .frame(width: min(viewportWidth * 0.58, 260), height: 28)
+                        .frame(width: min(viewportWidth * 0.52, 260), height: 22)
 
                     RoundedRectangle(cornerRadius: 5, style: .continuous)
                         .fill(Color.secondary.opacity(0.14))
-                        .frame(width: min(viewportWidth * 0.34, 150), height: 14)
-
-                    HStack(spacing: 8) {
-                        ForEach(0..<4, id: \.self) { index in
-                            Capsule()
-                                .fill(Color.secondary.opacity(index == 0 ? 0.24 : 0.12))
-                                .frame(width: index == 0 ? 22 : 7, height: 7)
-                        }
-                    }
-                    .padding(.top, 12)
+                        .frame(width: min(viewportWidth * 0.34, 150), height: 16)
                 }
-
-                Spacer(minLength: cardHeight * 0.14)
+                Spacer(minLength: 0)
+                HStack(spacing: 6) {
+                    ForEach(0..<3, id: \.self) { index in
+                        Capsule()
+                            .fill(Color.secondary.opacity(index == 0 ? 0.24 : 0.12))
+                            .frame(width: index == 0 ? 18 : 6, height: 6)
+                    }
+                }
+                .padding(.bottom, 5)
             }
-            .shimmering()
+            .padding(.horizontal, AppConstants.Spacing.xl)
+            .padding(.bottom, AppConstants.Spacing.xxl)
+            .shimmering(active: !reduceMotion && scenePhase == .active)
         }
         .frame(width: viewportWidth, height: cardHeight)
         .frame(maxWidth: .infinity)

@@ -527,6 +527,15 @@ struct ContentView: View {
 
     // MARK: - iPhone TabView (iOS 18+)
 
+    @available(iOS 26.0, *)
+    private var iPhoneSearchTabRole: TabRole {
+        if #available(iOS 27.0, *) {
+            // Keep the FullUI search destination separate from the main tab group.
+            return .prominent
+        }
+        return .search
+    }
+
     @available(iOS 18.0, *)
     private var iPhoneTabView: some View {
         if #available(iOS 26.0, *) {
@@ -552,7 +561,7 @@ struct ContentView: View {
                 }
 
                 if pluginAvailability.hasAvailablePlugins {
-                    Tab("搜索", systemImage: "magnifyingglass", value: TabSelection.search, role: .search) {
+                    Tab("搜索", systemImage: "magnifyingglass", value: TabSelection.search, role: iPhoneSearchTabRole) {
                         AdaptiveSearchView()
                     }
                 }

@@ -23,6 +23,10 @@ class FavoriteListViewController: UIViewController {
     private let namespace: Namespace.ID
     /// 由 SwiftUI wrapper 注入,用来在 contextMenu 失败时弹 swiftui-toasts 的 toast。
     var toastPresenter: ((ToastValue) -> Void)?
+    var onPullDistanceChange: ((CGFloat) -> Void)?
+    var onRefreshChange: ((Bool) -> Void)?
+    private let refreshGate = PullRefreshReleaseGate()
+    private var refreshTask: Task<Void, Never>?
 
     private lazy var collectionView: UICollectionView = {
         let layout = createCompositionalLayout()
@@ -381,11 +385,23 @@ class FavoriteListViewController: UIViewController {
     // MARK: - Actions
 
     @objc private func handleRefresh() {
-        Task { @MainActor in
+        guard refreshTask == nil else { return }
+        refreshGate.scrollView = collectionView
+        refreshTask = Task { @MainActor in
+            defer {
+                refreshControl.endRefreshing()
+                onRefreshChange?(false)
+                refreshTask = nil
+            }
+            guard await refreshGate.waitForRelease() else { return }
+            onRefreshChange?(true)
             await viewModel.pullToRefresh()
             updateFilteredSections()
-            refreshControl.endRefreshing()
         }
+    }
+
+    func cancelPendingRefresh() {
+        refreshTask?.cancel()
     }
 }
 
@@ -449,6 +465,10 @@ extension FavoriteListViewController: UICollectionViewDataSource {
 // MARK: - UICollectionViewDelegate
 
 extension FavoriteListViewController: UICollectionViewDelegate {
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        guard scrollView === collectionView else { return }
+        onPullDistanceChange?(max(0, -(scrollView.contentOffset.y + scrollView.adjustedContentInset.top)))
+    }
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         defer { collectionView.deselectItem(at: indexPath, animated: true) }
         let sections = filteredSections
