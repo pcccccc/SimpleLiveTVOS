@@ -10,10 +10,11 @@
 import Foundation
 
 public enum PlatformLoginMethod: String, Sendable, CaseIterable, Identifiable {
-    case clientCredentials, apiToken, qrCode, web, manualCookie
+    case deviceCode, clientCredentials, apiToken, qrCode, web, manualCookie
     public var id: String { rawValue }
     public var title: String {
         switch self {
+        case .deviceCode: "设备码登录"
         case .clientCredentials: "Client ID 与 Client Secret"
         case .apiToken: "自定义 API 凭据"
         case .qrCode: "扫码登录"
@@ -43,10 +44,12 @@ public struct LoginPlatformEntry: Sendable, Equatable, Identifiable {
 
     public var supportsAPIToken: Bool { auth?.credentialKinds?.contains("token") == true }
     public var supportsClientCredentials: Bool { auth?.credentialKinds?.contains("client_credentials") == true }
-    public var supportsAPICredentials: Bool { supportsAPIToken || supportsClientCredentials }
+    public var supportsDeviceCode: Bool { auth?.credentialKinds?.contains("oauth_device_code") == true }
+    public var supportsAPICredentials: Bool { supportsAPIToken || supportsClientCredentials || supportsDeviceCode }
 
     public func methods(for platform: LoginChallengeHostPlatform) -> [PlatformLoginMethod] {
         var result: [PlatformLoginMethod] = []
+        if supportsDeviceCode { result.append(.deviceCode) }
         if platform == .iOS && supportsClientCredentials { result.append(.clientCredentials) }
         if supportsAPIToken { result.append(.apiToken) }
         if loginChallenge?.isSupportedByCurrentHost == true { result.append(.qrCode) }
@@ -59,6 +62,7 @@ public struct LoginPlatformEntry: Sendable, Equatable, Identifiable {
 
     public func preferredMethod(for platform: LoginChallengeHostPlatform, isLoggedIn: Bool, allowsPreferredQRCode: Bool = true) -> PlatformLoginMethod? {
         let available = methods(for: platform)
+        if available.contains(.deviceCode) { return .deviceCode }
         if available.contains(.clientCredentials) { return .clientCredentials }
         if available.contains(.apiToken) { return .apiToken }
         if !isLoggedIn, allowsPreferredQRCode, loginChallenge?.prefers(platform) == true, available.contains(.qrCode) { return .qrCode }
@@ -108,7 +112,7 @@ public actor PlatformLoginRegistry {
         var entries: [LoginPlatformEntry] = []
         for manifest in manifests {
             guard manifest.loginFlow != nil || manifest.loginChallenge?.isSupportedByCurrentHost == true
-                    || manifest.auth?.credentialKinds?.contains(where: { ["token", "client_credentials"].contains($0) }) == true else { continue }
+                    || manifest.auth?.credentialKinds?.contains(where: { ["token", "client_credentials", "oauth_device_code"].contains($0) }) == true else { continue }
             let liveType = manifest.liveTypes.first ?? manifest.pluginId
             let displayName = manifest.displayName ?? manifest.pluginId
             let entry = LoginPlatformEntry(

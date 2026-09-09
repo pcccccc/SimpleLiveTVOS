@@ -4,6 +4,7 @@ import Security
 public enum PlatformAPICredentialKind: String, Codable, Sendable {
     case token
     case clientCredentials = "client_credentials"
+    case deviceCode = "oauth_device_code"
 }
 
 protocol APITokenStorage {
@@ -64,23 +65,27 @@ enum APITokenError: Error, LocalizedError {
 /// This actor serializes persistence and generation changes without suspension.
 actor PlatformAPITokenVault {
     static let shared = PlatformAPITokenVault(storage: APITokenKeychain())
+    nonisolated let deviceAuth: PlatformDeviceAuthCoordinator
     struct Record: Codable, Sendable {
         let token: String?
         let clientId: String?
         let clientSecret: String?
+        let deviceCredential: DeviceAPICredential?
         let status: CredentialStatus
 
-        var kind: PlatformAPICredentialKind { clientSecret == nil ? .token : .clientCredentials }
+        var kind: PlatformAPICredentialKind { deviceCredential != nil ? .deviceCode : clientSecret == nil ? .token : .clientCredentials }
         var payload: [String: String] {
+            if let deviceCredential { return deviceCredential.browsePayload }
             if let clientId, let clientSecret { return ["clientId": clientId, "clientSecret": clientSecret] }
             return token.map { ["apiToken": $0] } ?? [:]
         }
-        var secrets: [String] { [token, clientSecret].compactMap { $0 } }
+        var secrets: [String] { [token, clientSecret, deviceCredential?.accessToken, deviceCredential?.refreshToken].compactMap { $0 } }
 
         init(token: String, status: CredentialStatus) {
             self.token = token
             self.clientId = nil
             self.clientSecret = nil
+            self.deviceCredential = nil
             self.status = status
         }
 
@@ -88,24 +93,36 @@ actor PlatformAPITokenVault {
             self.token = nil
             self.clientId = clientId
             self.clientSecret = clientSecret
+            self.deviceCredential = nil
             self.status = status
         }
 
-        private enum CodingKeys: String, CodingKey { case token, clientId, clientSecret, status }
+        init(deviceCredential: DeviceAPICredential, status: CredentialStatus) {
+            self.token = nil
+            self.clientId = nil
+            self.clientSecret = nil
+            self.deviceCredential = deviceCredential
+            self.status = status
+        }
+
+        private enum CodingKeys: String, CodingKey { case token, clientId, clientSecret, deviceCredential, status }
 
         init(from decoder: any Decoder) throws {
             let values = try decoder.container(keyedBy: CodingKeys.self)
             token = try values.decodeIfPresent(String.self, forKey: .token)
             clientId = try values.decodeIfPresent(String.self, forKey: .clientId)
             clientSecret = try values.decodeIfPresent(String.self, forKey: .clientSecret)
+            deviceCredential = try values.decodeIfPresent(DeviceAPICredential.self, forKey: .deviceCredential)
             status = try values.decode(CredentialStatus.self, forKey: .status)
-            guard (token != nil && clientId == nil && clientSecret == nil)
-                    || (token == nil && clientId != nil && clientSecret != nil) else {
+            guard (deviceCredential == nil && ((token != nil && clientId == nil && clientSecret == nil)
+                    || (token == nil && clientId != nil && clientSecret != nil)))
+                    || (deviceCredential?.isWellFormed == true && token == nil && clientId == nil && clientSecret == nil) else {
                 throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Invalid API credential record"))
             }
         }
 
         func replacingStatus(_ status: CredentialStatus) -> Record {
+            if let deviceCredential { return .init(deviceCredential: deviceCredential, status: status) }
             if let clientId, let clientSecret { return .init(clientId: clientId, clientSecret: clientSecret, status: status) }
             return .init(token: token ?? "", status: status)
         }
@@ -119,14 +136,20 @@ actor PlatformAPITokenVault {
     private var generations: [String: UUID] = [:]
     private var runtimes: [String: [ObjectIdentifier: JSRuntime]] = [:]
     private var fullUIConsumers: Set<UUID> = []
+    // A rotated single-use refresh token must never fall back to the disk record.
+    private var pendingRotations: [String: Record] = [:]
 
-    init(storage: sending any APITokenStorage) { self.storage = storage }
+    init(storage: sending any APITokenStorage, now: @escaping @Sendable () -> Double = { Date().timeIntervalSince1970 }) {
+        self.storage = storage
+        self.deviceAuth = PlatformDeviceAuthCoordinator(now: now)
+    }
 
     func activate(_ consumer: UUID) { fullUIConsumers.insert(consumer) }
     func deactivate(_ consumer: UUID) { fullUIConsumers.remove(consumer) }
     var isEnabled: Bool { !fullUIConsumers.isEmpty }
 
     func record(pluginId: String) throws -> Record? {
+        if let pending = pendingRotations[pluginId] { return pending }
         guard let data = try storage.read(pluginId: pluginId) else { return nil }
         return try JSONDecoder().decode(Record.self, from: data)
     }
@@ -167,9 +190,22 @@ actor PlatformAPITokenVault {
         if let expectedGeneration { try check(pluginId: pluginId, generation: expectedGeneration) }
         if let record { try storage.write(JSONEncoder().encode(record), pluginId: pluginId) }
         else { try storage.delete(pluginId: pluginId) }
+        pendingRotations[pluginId] = nil
         generations[pluginId] = UUID()
         manager.evict(pluginId: pluginId)
         return Array(runtimes.removeValue(forKey: pluginId)?.values ?? [:].values)
+    }
+
+    func persistRotation(_ record: Record, pluginId: String, generation: UUID) throws {
+        try check(pluginId: pluginId, generation: generation)
+        pendingRotations[pluginId] = record
+        try flushRotation(pluginId: pluginId)
+    }
+
+    func flushRotation(pluginId: String) throws {
+        guard let record = pendingRotations[pluginId] else { return }
+        try storage.write(JSONEncoder().encode(record), pluginId: pluginId)
+        pendingRotations[pluginId] = nil
     }
 }
 
@@ -183,7 +219,7 @@ enum APITokenCallPolicy {
         if error is CancellationError { return CancellationError() }
         if let error = error as? APITokenError { return error }
         if case let LiveParsePluginError.standardized(value) = error {
-            let reasons: Set<String> = ["api_token_missing", "api_token_invalid", "api_token_expired", "api_token_revoked", "credential_changed", "integrity_required"]
+            let reasons: Set<String> = ["api_token_missing", "api_token_invalid", "api_token_expired", "api_token_revoked", "credential_changed", "device_login_changed", "oauth_reauth_required", "integrity_required"]
             let context = value.context["reason"].flatMap { reasons.contains($0) ? ["reason": $0] : nil } ?? [:]
             return LiveParsePluginError.standardized(.init(code: value.code, message: "插件请求失败（\(value.code.rawValue)）", context: context))
         }

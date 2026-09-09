@@ -79,6 +79,7 @@ public final class LiveParsePluginManager: @unchecked Sendable {
     public let bundle: Bundle
     public let session: URLSession
     let apiTokenVault: PlatformAPITokenVault
+    var deviceAuth: PlatformDeviceAuthCoordinator { apiTokenVault.deviceAuth }
 
     private let logHandler: LogHandler?
     private let lock = NSLock()
@@ -252,7 +253,14 @@ public final class LiveParsePluginManager: @unchecked Sendable {
         sensitive: Bool = false,
         hostManagesCredentialVault: Bool = false
     ) async throws -> Any {
-        try await performCall(
+        let deviceSnapshot: PlatformAPITokenVault.Snapshot?
+        if await apiTokenVault.isEnabled, APITokenCallPolicy.functions.contains(function),
+           try resolve(pluginId: pluginId).manifest.auth?.credentialKinds?.contains("oauth_device_code") == true,
+           try await apiTokenVault.record(pluginId: pluginId)?.deviceCredential != nil {
+            deviceSnapshot = try await deviceAuth.ensure(pluginId: pluginId, manager: self)
+        } else { deviceSnapshot = nil }
+        do {
+            return try await performCall(
             pluginId: pluginId,
             function: function,
             payload: payload,
@@ -262,6 +270,26 @@ public final class LiveParsePluginManager: @unchecked Sendable {
             isolatedPlatformSession: nil,
             runtimeLease: nil
         )
+        } catch {
+            guard let deviceSnapshot, let credential = deviceSnapshot.record?.deviceCredential,
+                  case let LiveParsePluginError.standardized(value) = error, value.code == .authRequired else { throw error }
+            if PlatformDeviceAuthCoordinator.isReauth(error) {
+                try await deviceAuth.reject(pluginId: pluginId, generation: deviceSnapshot.generation, manager: self)
+                throw error
+            }
+            try await apiTokenVault.check(pluginId: pluginId, generation: deviceSnapshot.generation)
+            _ = try await deviceAuth.ensure(pluginId: pluginId, manager: self, rejectedToken: credential.accessToken)
+            do {
+                return try await performCall(pluginId: pluginId, function: function, payload: payload,
+                    sensitive: true, sensitiveConsolePolicy: .omitted, hostManagesCredentialVault: hostManagesCredentialVault,
+                    isolatedPlatformSession: nil, runtimeLease: nil)
+            } catch {
+                if case let LiveParsePluginError.standardized(value) = error, value.code == .authRequired {
+                    try await deviceAuth.reject(pluginId: pluginId, generation: deviceSnapshot.generation, manager: self)
+                }
+                throw error
+            }
+        }
     }
 
     private func performCall(
@@ -298,7 +326,7 @@ public final class LiveParsePluginManager: @unchecked Sendable {
 
         var payload = payload
         let selectedPlugin = try runtimeLease?.plugin ?? resolve(pluginId: pluginId)
-        let tokenPlugin = selectedPlugin.manifest.auth?.credentialKinds?.contains(where: { ["token", "client_credentials"].contains($0) }) == true
+        let tokenPlugin = selectedPlugin.manifest.auth?.credentialKinds?.contains(where: { ["token", "client_credentials", "oauth_device_code"].contains($0) }) == true
         let tokenFeatureEnabled = await apiTokenVault.isEnabled
         let tokenEnabled = tokenPlugin && (isolatedPlatformSession != nil || tokenFeatureEnabled)
         var tokenSnapshot: PlatformAPITokenVault.Snapshot?
@@ -307,6 +335,11 @@ public final class LiveParsePluginManager: @unchecked Sendable {
             payload.removeValue(forKey: "apiToken")
             payload.removeValue(forKey: "clientId")
             payload.removeValue(forKey: "clientSecret")
+            payload.removeValue(forKey: "credentialKind")
+            payload.removeValue(forKey: "userId")
+            payload.removeValue(forKey: "refreshToken")
+            payload.removeValue(forKey: "accessToken")
+            payload.removeValue(forKey: "credential")
             if APITokenCallPolicy.functions.contains(function) {
                 let snapshot = try await apiTokenVault.snapshot(pluginId: pluginId)
                 tokenSnapshot = snapshot
@@ -499,7 +532,7 @@ public final class LiveParsePluginManager: @unchecked Sendable {
                         : error.localizedDescription
                 )
             }
-            if let tokenSnapshot, self === LiveParsePlugins.shared,
+            if let tokenSnapshot, tokenSnapshot.record?.deviceCredential == nil, self === LiveParsePlugins.shared,
                case let LiveParsePluginError.standardized(value) = error, value.code == .authRequired {
                 let reason = value.context["reason"] ?? ""
                 if ["api_token_invalid", "api_token_expired", "api_token_revoked"].contains(reason) {
@@ -725,7 +758,8 @@ public final class LiveParsePluginManager: @unchecked Sendable {
 
     private static func isSensitivePluginFunction(_ function: String) -> Bool {
         switch function.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
-        case "setcredential", "clearcredential", "validatecredential", "getcredentialstatus":
+        case "setcredential", "clearcredential", "validatecredential", "getcredentialstatus",
+             "startdevicelogin", "polldevicelogin", "canceldevicelogin", "refreshdevicecredential", "resetdeviceauth":
             return true
         default:
             return false
@@ -761,6 +795,7 @@ public final class LiveParsePluginManager: @unchecked Sendable {
         let lowered = key.lowercased()
         let redactedKeys: Set<String> = [
             "transactionid", "challengeid", "qrcontent", "qrimage", "credential", "cookie", "set-cookie",
+            "loginid", "usercode", "verificationuri", "device_code", "devicecode",
             "setcookies", "authorization", "location", "headers", "requestheaders",
             "responseheaders", "body", "bodytext", "bodybase64", "requestbody", "responsebody"
         ]
@@ -864,6 +899,57 @@ public final class LiveParsePluginManager: @unchecked Sendable {
                 "Decoding \(String(describing: T.self)) failed in \(runtimeLease.pluginId).\(function): \(error.localizedDescription)"
             )
         }
+    }
+
+    /// A device attempt owns one isolated runtime from start through candidate
+    /// validation. It cannot change the committed account's browsing caches.
+    func deviceLoginRuntimeLease(pluginId: String) throws -> LiveParsePluginRuntimeLease {
+        let lease = try runtimeLease(pluginId: pluginId)
+        let selected = lease.plugin
+        let isolated = LiveParseLoadedPlugin(manifest: selected.manifest, rootDirectory: selected.rootDirectory,
+            location: selected.location, runtime: JSRuntime(pluginId: pluginId, session: session,
+                nativeStream: selected.manifest.nativeStream, loginTransactionStore: .shared,
+                credentialDomains: selected.manifest.hostManagedCredentialDomains,
+                platformSessionOverride: .init(cookie: "", uid: nil, updatedAt: .now), logHandler: logHandler))
+        return LiveParsePluginRuntimeLease(pluginId: pluginId, version: lease.version,
+            credentialDomains: lease.credentialDomains, credentialKinds: lease.credentialKinds,
+            plugin: isolated, versionLeaseToken: lease.versionLeaseToken)
+    }
+
+    /// This internal path deliberately bypasses Cookie mutator interception and
+    /// committed-payload injection. All output, including successful responses,
+    /// remains suppressed for the entire lifetime of the runtime.
+    func callDeviceAuth<T: Decodable & Sendable>(using lease: LiveParsePluginRuntimeLease, function: String, payload: [String: Any]) async throws -> T {
+        let data = try JSONSerialization.data(withJSONObject: payload)
+        do {
+            return try await withThrowingTaskGroup(of: Data.self) { group in
+                group.addTask {
+                    await lease.plugin.runtime.beginSensitiveLoggingSuppression(apiTokenSession: true, deviceAuthSession: true)
+                    try await lease.plugin.load()
+                    let input = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
+                    let result = try await lease.plugin.runtime.callPluginFunction(name: function, payload: input, checkSynchronousException: true)
+                    guard JSONSerialization.isValidJSONObject(result) else { throw APITokenError.invalid }
+                    return try JSONSerialization.data(withJSONObject: result)
+                }
+                group.addTask {
+                    try await Task.sleep(for: .seconds(30))
+                    throw LiveParsePluginError.standardized(.init(code: .timeout, message: "授权请求超时。"))
+                }
+                defer { group.cancelAll() }
+                guard let result = try await group.next() else { throw APITokenError.invalid }
+                return try JSONDecoder().decode(T.self, from: result)
+            }
+        } catch { throw APITokenCallPolicy.safeError(error) }
+    }
+
+    func finishDeviceAuth(_ lease: LiveParsePluginRuntimeLease, loginId: String) async {
+        struct Receipt: Decodable, Sendable {}
+        let _: Receipt? = try? await callDeviceAuth(using: lease, function: "cancelDeviceLogin", payload: ["loginId": loginId])
+        await lease.plugin.runtime.retireCredentialGeneration(resetDeviceAuth: true)
+    }
+
+    func registerDeviceRuntime(_ lease: LiveParsePluginRuntimeLease, generation: UUID) async throws {
+        try await apiTokenVault.register(lease.plugin.runtime, pluginId: lease.pluginId, generation: generation)
     }
 
     private func extractCredentialCookie(from payload: [String: Any]) -> (String, String?) {

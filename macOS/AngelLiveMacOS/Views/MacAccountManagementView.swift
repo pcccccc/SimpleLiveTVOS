@@ -15,6 +15,9 @@ struct MacAccountManagementView: View {
     @State private var platforms: [LoginPlatformEntry] = []
     @State private var methodSelection: LoginPlatformEntry?
     @State private var selectedLogin: LoginPresentation?
+    @State private var accountSelection: LoginPlatformEntry?
+    @State private var pendingMethodSelection: LoginPlatformEntry?
+    @State private var openingAccount = false
 
     private struct LoginPresentation: Identifiable {
         let entry: LoginPlatformEntry
@@ -78,15 +81,26 @@ struct MacAccountManagementView: View {
             )
                 .frame(minWidth: 800, minHeight: 600)
         }
+        .sheet(item: $accountSelection, onDismiss: {
+            if let entry = pendingMethodSelection {
+                pendingMethodSelection = nil
+                selectLoginMethod(entry)
+            }
+        }) { entry in
+            PlatformAPIAccountView(entry: entry) {
+                pendingMethodSelection = entry
+                accountSelection = nil
+            }
+            .frame(minWidth: 480, minHeight: 420)
+        }
     }
 
     private func platformAccountRow(_ entry: LoginPlatformEntry) -> some View {
         Button {
-            let methods = entry.methods(for: .macOS)
-            if methods.count > 1 {
-                methodSelection = entry
-            } else if let method = methods.first {
-                selectedLogin = LoginPresentation(entry: entry, method: method)
+            openingAccount = true
+            Task {
+                await openAccount(entry)
+                openingAccount = false
             }
         } label: {
             PanelNavigationRow(
@@ -105,7 +119,7 @@ struct MacAccountManagementView: View {
                         .foregroundStyle(.secondary)
                 }
             } trailing: {
-                if entry.supportsAPIToken {
+                if entry.supportsAPICredentials {
                     PlatformAPITokenStatusLabel(pluginId: entry.pluginId)
                 } else {
                     loginStatusBadge(syncService.isLoggedIn(pluginId: entry.pluginId))
@@ -113,9 +127,10 @@ struct MacAccountManagementView: View {
             }
         }
         .buttonStyle(.plain)
+        .disabled(openingAccount)
         .confirmationDialog("选择登录方式", isPresented: methodSelectionBinding(for: entry), titleVisibility: .visible) {
             ForEach(entry.methods(for: .macOS)) { method in
-                Button(method.title) {
+                Button(method == .deviceCode ? "登录 \(entry.displayName)" : method.title) {
                     selectedLogin = LoginPresentation(entry: entry, method: method)
                 }
             }
@@ -130,6 +145,31 @@ struct MacAccountManagementView: View {
             get: { methodSelection?.pluginId == entry.pluginId },
             set: { if !$0 { methodSelection = nil } }
         )
+    }
+
+    private func openAccount(_ entry: LoginPlatformEntry) async {
+        if entry.supportsAPICredentials {
+            let service = PlatformAPITokenService.shared
+            await service.load(pluginId: entry.pluginId)
+            if service.statuses[entry.pluginId] != nil || service.failures[entry.pluginId] != nil {
+                accountSelection = entry
+                return
+            }
+        }
+        if syncService.isLoggedIn(pluginId: entry.pluginId) {
+            selectedLogin = LoginPresentation(entry: entry, method: .web)
+            return
+        }
+        selectLoginMethod(entry)
+    }
+
+    private func selectLoginMethod(_ entry: LoginPlatformEntry) {
+        let methods = entry.methods(for: .macOS)
+        if methods.count > 1 {
+            methodSelection = entry
+        } else if let method = methods.first {
+            selectedLogin = LoginPresentation(entry: entry, method: method)
+        }
     }
 
     private func loadPlatforms() async {

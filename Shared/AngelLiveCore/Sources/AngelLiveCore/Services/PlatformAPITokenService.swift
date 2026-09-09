@@ -53,6 +53,7 @@ public final class PlatformAPITokenService {
     }
 
     private func validateAndSave(pluginId: String, candidate: PlatformAPITokenVault.Record) async throws {
+        _ = await manager.deviceAuth.cancel(pluginId: pluginId, manager: manager)
         let attempt = UUID()
         attempts[pluginId] = attempt
         let baseline = try await manager.apiTokenVault.snapshot(pluginId: pluginId)
@@ -95,6 +96,8 @@ public final class PlatformAPITokenService {
     public func clear(pluginId: String) async throws {
         attempts[pluginId] = UUID()
         let retired = try await manager.apiTokenVault.replace(pluginId: pluginId, record: nil, manager: manager)
+        await manager.deviceAuth.forgetValidation(pluginId: pluginId, disconnected: true)
+        _ = await manager.deviceAuth.cancel(pluginId: pluginId, manager: manager)
         statuses[pluginId] = nil
         failures[pluginId] = nil
         await invalidate(pluginId: pluginId, runtimes: retired)
@@ -104,6 +107,12 @@ public final class PlatformAPITokenService {
         do {
             let snapshot = try await manager.apiTokenVault.snapshot(pluginId: pluginId)
             guard let credential = snapshot.record else { statuses[pluginId] = nil; return }
+            if credential.deviceCredential != nil {
+                let current = try await manager.deviceAuth.ensure(pluginId: pluginId, manager: manager, forceValidation: true)
+                statuses[pluginId] = current.record?.status
+                failures[pluginId] = nil
+                return
+            }
             let status: CredentialStatus = try await withThrowingTaskGroup(of: CredentialStatus.self) { group in
                 group.addTask { [manager] in
                     try await manager.callDecodable(pluginId: pluginId, function: "getCredentialStatus", sensitive: true)
@@ -144,11 +153,22 @@ public final class PlatformAPITokenService {
     }
 
     private func invalidate(pluginId: String, runtimes: [JSRuntime]) async {
-        for runtime in runtimes { await runtime.retireCredentialGeneration() }
+        await manager.deviceAuth.forgetValidation(pluginId: pluginId)
+        for runtime in runtimes { await runtime.retireCredentialGeneration(resetDeviceAuth: true) }
         await PluginHomeFeedCacheStore.shared.remove(pluginId: pluginId)
         contentRevision &+= 1
         revisions[pluginId, default: 0] &+= 1
         NotificationCenter.default.post(name: .platformAPICredentialChanged, object: pluginId)
+    }
+
+    func deviceCredentialCommitted(pluginId: String, status: CredentialStatus, runtimes: [JSRuntime], manager: LiveParsePluginManager) async {
+        guard self.manager === manager else {
+            for runtime in runtimes { await runtime.retireCredentialGeneration() }
+            return
+        }
+        await load(pluginId: pluginId)
+        failures[pluginId] = nil
+        await invalidate(pluginId: pluginId, runtimes: runtimes)
     }
 
     func recordUnavailable(pluginId: String, generation: UUID, state: String) async {

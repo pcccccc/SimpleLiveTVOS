@@ -85,7 +85,7 @@ struct AccountManagementView: View {
                                     .foregroundStyle(.secondary)
                                     .accessibilityLabel("支持扫码登录")
                             }
-                            if entry.supportsAPIToken {
+                            if entry.supportsAPICredentials {
                                 PlatformAPITokenStatusLabel(pluginId: entry.pluginId)
                             } else {
                             Text(loginStatusText(for: entry))
@@ -146,6 +146,9 @@ struct PlatformDetailPageView: View {
     @State private var showLogoutConfirm = false
     @State private var showQRCodeLogin = false
     @State private var showAPIToken = false
+    @State private var showDeviceLogin = false
+    @State private var showAPIAccount = false
+    @State private var apiService = PlatformAPITokenService.shared
 
     /// 是否支持服务端 Cookie 验证
     private var supportsValidation: Bool {
@@ -158,13 +161,16 @@ struct PlatformDetailPageView: View {
 
             // 状态显示区域
             Group {
-                if entry.supportsAPIToken { PlatformAPITokenStatusLabel(pluginId: entry.pluginId) }
+                if entry.supportsAPICredentials { PlatformAPITokenStatusLabel(pluginId: entry.pluginId) }
                 else { statusSection }
             }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 40)
 
             // 已登录时的操作
+            if entry.supportsAPICredentials, apiService.statuses[entry.pluginId] != nil {
+                Button("账号信息与凭证验证") { showAPIAccount = true }
+            }
             if isLoggedIn && entry.loginFlow != nil {
                 // 支持验证的平台：验证 Cookie
                 if supportsValidation {
@@ -195,6 +201,9 @@ struct PlatformDetailPageView: View {
                 }
             }
 
+            if entry.methods(for: .tvOS).contains(.deviceCode) {
+                Button("登录 \(entry.displayName)") { showDeviceLogin = true }
+            }
             if entry.methods(for: .tvOS).contains(.apiToken) {
                 Button(PlatformLoginMethod.apiToken.title) { showAPIToken = true }
             }
@@ -229,8 +238,14 @@ struct PlatformDetailPageView: View {
             Spacer(minLength: 200)
         }
         .onExitCommand { onBack() }
+        .fullScreenCover(isPresented: $showAPIAccount) {
+            PlatformAPIAccountView(entry: entry) { showAPIAccount = false }
+        }
         .fullScreenCover(isPresented: $showAPIToken) {
             PlatformAPITokenView(entry: entry)
+        }
+        .fullScreenCover(isPresented: $showDeviceLogin) {
+            PlatformDeviceLoginView(entry: entry)
         }
         .alert("退出登录", isPresented: $showLogoutConfirm) {
             Button("取消", role: .cancel) {}

@@ -17,6 +17,8 @@ struct PlatformLoginSheet: View {
 
     var body: some View {
         switch method {
+        case .deviceCode:
+            PlatformDeviceLoginView(entry: entry)
         case .clientCredentials:
             PlatformAPITokenView(entry: entry, kind: .clientCredentials)
         case .apiToken:

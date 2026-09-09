@@ -11,7 +11,7 @@ public enum LiveService {
         // Token plugins own credential-scoped caches and authorization checks.
         // A host disk cache hit must never bypass those checks.
         if await PlatformAPITokenVault.shared.isEnabled,
-           (try? LiveParsePlugins.shared.resolve(pluginId: platform.pluginId).manifest.auth?.credentialKinds?.contains(where: { ["token", "client_credentials"].contains($0) })) == true {
+           (try? LiveParsePlugins.shared.resolve(pluginId: platform.pluginId).manifest.auth?.credentialKinds?.contains(where: { ["token", "client_credentials", "oauth_device_code"].contains($0) })) == true {
             return try await ApiManager.fetchCategoryList(liveType: liveType)
         }
 

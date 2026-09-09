@@ -1,6 +1,40 @@
 # 插件 API 凭据宿主接入
 
+更新时间：2026-09-09。设备码授权扩展见下节；原有手动 Token、应用凭据与 Cookie 协议继续独立生效。
+
+## 设备码授权
+
+manifest 的 `auth.credentialKinds` 显式包含 `oauth_device_code` 时，三端 FullUI 把“登录（插件显示名）”列为首个登录方式；多方式插件保留选择入口及原有高级凭据方式。设备码无需声明 `loginFlow` 或 `loginChallenge`，不新增 HTTP `authMode`，也不复用 Cookie 二维码的 `login_transaction` / `confirmed` 提升逻辑。宿主不配置具体平台的应用 ID、域名或接口。
+
+账号入口先判断已有凭据：iOS/macOS 存在 API 安全记录时打开账号管理页（包括过期或失效记录），提供状态、重新校验、更换登录方式和退出操作；Cookie 已登录时进入原有账号验证页。没有已有账号时才直接选择登录方式。tvOS 保留平台详情入口，并提供 API 账号信息与凭证验证。重新打开账号页不会发起新的设备授权；主动更换登录方式后取消也不会删除已有凭据。上述入口仅用于 FullUI。
+
+| 插件函数 | 入参 | 返回与宿主行为 |
+| --- | --- | --- |
+| `startDeviceLogin` | `{ loginId }`，每次由宿主生成新的 UUID | `state=waiting`、同一 `loginId`、`userCode`、`verificationUri`、`expiresAt`、`interval` / `retryAfter`；使用插件默认 Public Client ID |
+| `pollDeviceLogin` | `{ loginId }` | `waiting` 按新的退避间隔继续；`authorized` 带敏感候选 `credential`，此时尚未连接；`denied` / `expired` / `failed` 停止轮询 |
+| `cancelDeviceLogin` | `{ loginId }` | 仅清理匹配尝试，不能删除已保存账号或取消新尝试 |
+| `refreshDeviceCredential` | `{ credential }`，完整安全记录 | 返回新的 `{ credential }`；先持久化新 Token 对，再校验或继续浏览 |
+| `resetDeviceAuth` | `{}` | 清理授权、刷新与分页内存；退出或切换时与 runtime 淘汰及宿主代次失效配合 |
+
+时间戳均为 Unix 秒，轮询间隔为秒。页面原样显示 `userCode`，用本机 Core Image 将 HTTPS `verificationUri` 编成二维码；iOS/macOS 同时可打开授权页面。二维码及设备码只存在于当前页面内存；关闭页面取消该尝试，过期后由用户重新生成。页面不接收 Token，也不收集密码或 Client Secret。
+
+授权成功后显示独立的确认内容：成功图标、“登录成功”、一条平台连接状态，以及全宽“完成”主按钮。退出登录收进“账号选项”菜单，不与完成操作争夺视觉重点。iOS 成功状态使用可展开的紧凑弹层，无障碍大字体保留大弹层与滚动；二维码阶段保持原有布局。macOS 同步缩小成功状态的最小内容高度，tvOS 使用相同结果内容。
+
+`PlatformDeviceAuthCoordinator` 由 API vault 持有，同一安全记录只对应一个协调者。每插件的任务链串行执行跨 `await` 的登录与刷新操作。一次设备登录租用同一版本的独立 runtime，start、poll、validate、cancel 共用该实例；未提交候选不影响已登录账号的业务 runtime。插件 reload、pin 或版本更新不改变在途尝试的版本。
+
+设备凭据结构为 `{schemaVersion:1, kind:"oauth_device_code", clientId, accessToken, refreshToken, expireAt, userId?, userName?}`。只接受完整且未过期的候选，调用 `validateCredential({credentialKind, clientId, apiToken})` 验证 `state=valid`、匹配的 Client ID、非空用户身份、`authorizationType=api`、`tokenType=user_access_token` 和有效期。校验成功后将用户身份加入记录，再原子替换当前 API 配置。候选失败、网络或存储失败、提交前取消均保留旧账号。原子保存已开始时，取消等待提交结果；保存成功后的取消返回已连接语义，删除账号必须使用退出操作。
+
+设备 Token 对与身份元数据仅进入原有本机 Keychain service，不进入 Cookie session、UserDefaults、Host.storage、iCloud 或 Bonjour。旧手动 Token / 应用凭据记录继续可读。不能给缺少 Client ID 的旧设备记录套用插件默认 ID，也不能将已存 Token 改绑到其他应用。每台设备独立授权和刷新。
+
+启动、前台恢复、活跃期间每小时及每次浏览前确保授权有效。剩余有效期不超过 60 秒时刷新；并发请求共用串行协调后的最新记录。新 Token 对先写 Keychain，再校验身份；校验网络失败保留新记录。若轮换写入失败，vault 在内存中保留新值，下次只重试写入，禁止回读旧磁盘 Refresh Token 再次刷新；此时若进程退出，新值可能丢失并需要重新登录。
+
+业务注入范围沿用下文白名单，设备模式每次注入 `credentialKind`、`clientId`、`apiToken` 与已校验 `userId`，仅刷新函数收到 Refresh Token。401 对应的标准 `AUTH_REQUIRED` 最多刷新并重试原业务一次，保留原始分页参数；明确 `oauth_reauth_required` 不循环刷新。第二次认证失败提示重新登录。相同应用与用户的 Token 轮换保留 runtime 和分页缓存，切换账号或授权方式则推进代次、淘汰 runtime、清理业务缓存。播放与弹幕不携带设备 API 凭据。API 授权成功不代表已获取网页 Cookie、订阅播放权益或播放校验结果。
+
+设备授权函数统一走 manager 的内部敏感调用路径（仍执行普通插件 JS 函数），不走 `setCredential` / `clearCredential` 拦截路径。runtime 从加载起持续隐藏入参、成功响应、HTTP 内容、控制台和原始错误；不启用手动 Token 校验的 HTTP 错误正文诊断例外。授权调用有 30 秒超时，无效 JSON 返回按失败处理。插件授权 HTTP 必须使用既有域名白名单；设备授权 runtime 由宿主强制禁止 HTTP 重定向。FullUI 生命周期关闭时不启用设备凭据注入，ShellUI 没有新入口。
+
 ## 声明与登录方式
+
+下文描述既有手动 Token 与应用凭据方式；设备授权的流程、刷新与状态差异以上节为准。
 
 生效 manifest 的 `auth.credentialKinds` 包含 `token` 时，FullUI 提供手动 Access Token 配置；包含 `client_credentials` 时，iOS FullUI 另外提供“Client ID 与 Client Secret”。两种方式均不要求声明 `loginFlow`，不新增虚构的 `loginFlow.kind` 或 HTTP `authMode`。应用凭据入口本轮仅在 iOS 开放，其他宿主不展示该方式。
 
@@ -49,6 +83,29 @@ API 凭据插件的分类数据绕过宿主磁盘缓存，交由插件在校验�
 自动测试使用中性插件、内存安全存储替身和模拟 HTTP，覆盖：Token-only / 应用凭据 / 多方式入口、每次注入、跨插件隔离、播放/弹幕无 API 凭据、候选失败/取消、凭据种类切换、旧存储兼容、Client ID 不匹配、存储失败、旧 Promise 取消、清除后的代次保护、状态恢复、网络失败保留凭据、错误脱敏、禁止跳转及 HTTP 缓存隔离。既有 Cookie、扫码挑战与首页缓存测试继续回归。
 
 真实有效凭据的上游正向联调、超过一个分页批次的实际内容、撤销及过期的真实响应，需要配置相应插件并由用户提供自己的测试环境。API 校验成功不能作为播放器画面、声音或受限内容可播放的证明。
+
+### 设备码宿主接入验证（2026-09-09）
+
+- Core 相关回归 116 项、7 个 suite 通过，覆盖设备码能力发现、默认应用 ID、同 runtime 领取候选、提前轮询、过期、旧尝试取消、候选失败和清除后的代次保护、并发单次刷新、轮换落盘失败保留新值、校验网络失败、无效轮换响应停止复用旧 Token、401 单次重试与再次失败、播放弹幕无凭据及 FullUI 启用边界，同时回归原 API / Cookie / 扫码事务协议。
+- 设备 HTTP 重定向测试含允许跳转的非设备对照和强制拒绝的设备模式；模拟 URLProtocol 在拒绝跳转后通过超时结束原响应，断言以目标请求未发生为准。
+- 使用 Xcode 27 toolchain，通过可写临时编译缓存运行 Package 测试；测试期间共享首页磁盘缓存写入受沙箱限制产生警告，因此该缓存的真实落盘未由这次 Package 测试验证。没有使用或同步真实凭据。
+- 最后宿主源码修改后，MCP workspace 构建 `AngelLive`、`AngelLiveMacOS`、`AngelLiveTVOS` 均成功，三端构建后的 Issue Navigator error 均为 0。
+- 全仓平台标识扫描无命中，测试中的 `liveType` / `siteId` 未发现真实编号映射；ShellUI 目录未修改。
+
+### 设备登录成功页优化（2026-09-09）
+
+- 本轮仅调整共享 FullUI 登录页面的成功状态和原有退出操作的呈现；设备码协议、保存与刷新逻辑未改动。
+- 最后源码修改后，iOS、macOS、tvOS workspace MCP 构建成功，Issue Navigator error 均为 0。本轮未重复运行协议单元测试。
+- Xcode 27 的 `RenderPreview` 在生成的 `__designTimeSelection` thunk 中出现泛型歧义，未生成成功页图像；普通 workspace 构建不受影响。该工具结果不能作为视觉验收通过的证据。
+- 随后使用当前 MCP 的 `RunCodeSnippet`，通过 `UIHostingController` 与原生快照渲染同一个成功组件（中性示例平台，390×400 点、3 倍比例）；原尺寸检查确认图标、标题、单一连接状态、完成按钮及账号选项完整显示，无裁切或重叠。未重新授权或退出已有账号。
+- iPhone 17 Pro / iOS 27.0 在最后源码修改及快照运行后重新完成 `DeviceInteractionInstallAndRun`。确认账号列表显示已有 API 连接状态，方式选择中设备登录与两种原有手动凭据入口均可见；未再次发起真实授权，成功页以中性组件快照验收。macOS/tvOS 本轮仅完成构建，未进行设备交互验收。
+
+### 恢复已有账号验证入口（2026-09-09）
+
+- iOS/macOS 恢复已有账号优先进入管理页，API 验证 UI 复用共享凭据服务，tvOS 详情增加同一管理入口；不改变登录协议或 ShellUI。
+- 三端最后源码修改后的 MCP workspace 构建成功，Navigator error 均为 0。本轮仅调整 UI，未重复运行协议单元测试。
+- iPhone 17 Pro / iOS 27.0 在最后修改后完成新的 `DeviceInteractionInstallAndRun`：已有 API 账号直达管理页、重新校验完成且仍连接、更换方式后取消、再次打开仍进入管理页、完成返回均通过。Device Hub 已结束，没有退出或重新授权。
+- macOS/tvOS 仅构建验证；Cookie 已登录分支、退出、失效凭据及深色/大字体未进行本轮设备验收。
 
 ### 本次验证记录（2026-09-08）
 

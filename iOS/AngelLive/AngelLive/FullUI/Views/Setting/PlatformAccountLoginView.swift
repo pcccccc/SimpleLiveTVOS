@@ -16,6 +16,9 @@ struct PlatformAccountLoginView: View {
     @State private var methodSelection: LoginPlatformEntry?
     @State private var selectedLogin: LoginPresentation?
     @State private var pendingLogin: LoginPresentation?
+    @State private var accountSelection: LoginPlatformEntry?
+    @State private var pendingMethodSelection: LoginPlatformEntry?
+    @State private var openingAccount = false
 
     private struct LoginPresentation: Identifiable {
         let entry: LoginPlatformEntry
@@ -28,11 +31,10 @@ struct PlatformAccountLoginView: View {
             Section {
                 ForEach(platforms) { entry in
                     Button {
-                        let methods = entry.methods(for: .iOS)
-                        if methods.count > 1 {
-                            methodSelection = entry
-                        } else if let method = methods.first {
-                            selectedLogin = LoginPresentation(entry: entry, method: method)
+                        openingAccount = true
+                        Task {
+                            await openAccount(entry)
+                            openingAccount = false
                         }
                     } label: {
                         HStack(spacing: 12) {
@@ -69,6 +71,7 @@ struct PlatformAccountLoginView: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .disabled(openingAccount)
                 }
             } header: {
                 Text("平台列表")
@@ -102,6 +105,42 @@ struct PlatformAccountLoginView: View {
                 entry: selection.entry,
                 method: selection.method
             )
+        }
+        .sheet(item: $accountSelection, onDismiss: {
+            if let entry = pendingMethodSelection {
+                pendingMethodSelection = nil
+                selectLoginMethod(entry)
+            }
+        }) { entry in
+            PlatformAPIAccountView(entry: entry) {
+                pendingMethodSelection = entry
+                accountSelection = nil
+            }
+        }
+    }
+
+    private func openAccount(_ entry: LoginPlatformEntry) async {
+        if entry.supportsAPICredentials {
+            let service = PlatformAPITokenService.shared
+            await service.load(pluginId: entry.pluginId)
+            if service.statuses[entry.pluginId] != nil || service.failures[entry.pluginId] != nil {
+                accountSelection = entry
+                return
+            }
+        }
+        if syncService.isLoggedIn(pluginId: entry.pluginId) {
+            selectedLogin = LoginPresentation(entry: entry, method: .web)
+            return
+        }
+        selectLoginMethod(entry)
+    }
+
+    private func selectLoginMethod(_ entry: LoginPlatformEntry) {
+        let methods = entry.methods(for: .iOS)
+        if methods.count > 1 {
+            methodSelection = entry
+        } else if let method = methods.first {
+            selectedLogin = LoginPresentation(entry: entry, method: method)
         }
     }
 
@@ -157,7 +196,7 @@ private struct LoginMethodSelectionSheet: View {
                                     .foregroundStyle(.tint)
                                     .frame(width: 32)
                                     .accessibilityHidden(true)
-                                Text(method.iOSDisplayTitle)
+                                Text(method == .deviceCode ? "登录 \(entry.displayName)" : method.iOSDisplayTitle)
                                     .font(.body)
                                     .foregroundStyle(.primary)
                                 Spacer()
@@ -197,6 +236,7 @@ private struct LoginMethodSelectionSheet: View {
 
     private func symbol(for method: PlatformLoginMethod) -> String {
         switch method {
+        case .deviceCode: "key.viewfinder"
         case .clientCredentials: "key.horizontal.fill"
         case .apiToken: "key.fill"
         case .qrCode: "qrcode.viewfinder"

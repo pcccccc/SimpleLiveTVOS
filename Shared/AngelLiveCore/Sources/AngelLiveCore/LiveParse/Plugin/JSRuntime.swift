@@ -667,6 +667,7 @@ public final class JSRuntime: @unchecked Sendable {
     /// runtime 异常日志都静默，防止插件把 Cookie/token 拼进任意字符串。
     private var sensitiveLoggingDepth = 0
     private var apiTokenSession = false
+    private var deviceAuthSession = false
     /// Set only on the isolated runtime for manual API credential validation.
     private var loginDiagnosticSecrets: [String] = []
     private var credentialRetired = false
@@ -816,7 +817,14 @@ public final class JSRuntime: @unchecked Sendable {
                         }
 
                         let jsPayload = JSValue(object: payloadBox.value, in: self.context) as Any
-                        if checkSynchronousException { self.context.exception = nil }
+                        let previousExceptionHandler = self.context.exceptionHandler
+                        if checkSynchronousException {
+                            self.context.exception = nil
+                            self.context.exceptionHandler = { context, exception in context?.exception = exception }
+                        }
+                        defer {
+                            if checkSynchronousException { self.context.exceptionHandler = previousExceptionHandler }
+                        }
                         guard let result = pluginObject.invokeMethod(name, withArguments: [jsPayload]) else {
                             if let exception = self.context.exception {
                                 throw LiveParsePluginError.fromJSException(exception.toString() ?? "<unknown>")
@@ -864,11 +872,12 @@ public final class JSRuntime: @unchecked Sendable {
 
     /// 覆盖插件加载和函数调用的完整敏感区间。计数而非 Bool 是为了让同一
     /// runtime 的重叠调用保持保守静默，直到最后一个敏感调用结束。
-    func beginSensitiveLoggingSuppression(apiTokenSession: Bool = false, loginDiagnosticSecrets: [String] = []) async {
+    func beginSensitiveLoggingSuppression(apiTokenSession: Bool = false, deviceAuthSession: Bool = false, loginDiagnosticSecrets: [String] = []) async {
         await withCheckedContinuation { continuation in
             queue.async {
                 self.sensitiveLoggingDepth += 1
                 self.apiTokenSession = self.apiTokenSession || apiTokenSession
+                self.deviceAuthSession = self.deviceAuthSession || deviceAuthSession
                 if apiTokenSession, !loginDiagnosticSecrets.isEmpty { self.loginDiagnosticSecrets = loginDiagnosticSecrets }
                 continuation.resume()
             }
@@ -902,11 +911,17 @@ public final class JSRuntime: @unchecked Sendable {
     }
 
     /// Retire a credential generation, including pending JS promises and late logs.
-    func retireCredentialGeneration() async {
+    func retireCredentialGeneration(resetDeviceAuth: Bool = false) async {
         await withCheckedContinuation { continuation in
             queue.async {
-                self.credentialRetired = true
                 self.sensitiveLoggingDepth += 1
+                if resetDeviceAuth,
+                   let plugin = self.context.objectForKeyedSubscript("LiveParsePlugin"),
+                   plugin.objectForKeyedSubscript("resetDeviceAuth")?.isObject == true {
+                    _ = plugin.invokeMethod("resetDeviceAuth", withArguments: [[:]])
+                    self.context.exception = nil
+                }
+                self.credentialRetired = true
                 for callID in Array(self.pendingPromiseCalls.keys) {
                     self.pendingPromiseCalls[callID]?.completion.cancel()
                     self.cancelPendingPromise(callID: callID)
@@ -1343,6 +1358,7 @@ private extension JSRuntime {
             )
 
             let apiTokenSession = self.apiTokenSession
+            let deviceAuthSession = self.deviceAuthSession
             let flightKey = PluginHTTPFlightKey(
                 pluginId: self.pluginId,
                 sessionRevision: envelope.sessionRevision,
@@ -1418,7 +1434,7 @@ private extension JSRuntime {
                             pluginId: pluginId,
                             transactionId: transactionId,
                             store: store,
-                            followRedirects: envelope.followRedirects,
+                            followRedirects: deviceAuthSession ? false : envelope.followRedirects,
                             explicitCookieHeader: redirectCookieHeader,
                             pluginHeaderNames: pluginHeaderNames,
                             credentialDomains: credentialDomains
@@ -1452,7 +1468,7 @@ private extension JSRuntime {
                             protectsManagedCredential: protectsManagedCredential,
                             pluginHeaderNames: pluginHeaderNames,
                             rejectsCrossOriginRedirects: rejectsCrossOriginRedirects,
-                            followRedirects: apiTokenSession ? envelope.followRedirects : true
+                            followRedirects: deviceAuthSession ? false : apiTokenSession ? envelope.followRedirects : true
                         )
                     }
                     self?.queue.async { [weak self] in

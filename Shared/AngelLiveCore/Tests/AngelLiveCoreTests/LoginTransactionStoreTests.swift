@@ -1789,6 +1789,45 @@ struct LoginTransactionStoreTests {
         await runtime.retireCredentialGeneration()
     }
 
+    @Test("device authorization refuses redirects even when a plugin enables them", arguments: [false, true])
+    func deviceAuthorizationStopsRedirects(deviceSession: Bool) async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [LoginTransactionURLProtocol.self]
+        let session = URLSession(configuration: configuration)
+        defer { session.invalidateAndCancel() }
+        let runtime = JSRuntime(pluginId: "fixture.plugin", session: session)
+        let startPath = "/device-redirect-\(deviceSession)-start"
+        let finalPath = "/device-redirect-\(deviceSession)-final"
+        LoginTransactionURLProtocol.resetCapturedHeaders(for: finalPath)
+        await runtime.beginSensitiveLoggingSuppression(apiTokenSession: true, deviceAuthSession: deviceSession)
+        try await runtime.evaluate(script: """
+            globalThis.LiveParsePlugin = {
+              apiVersion: 1,
+              async probe() {
+                const response = await Host.http.request({
+                  url: 'https://login-transaction.invalid\(startPath)',
+                  authMode: 'none', followRedirects: true, timeoutMs: 200,
+                  headers: { Authorization: 'Bearer fixture-secret' }
+                });
+                return {status: response.status};
+              }
+            };
+            """)
+        do {
+            let response = try #require(try await runtime.callPluginFunction(name: "probe") as? [String: Any])
+            #expect(response["status"] as? Int == (deviceSession ? 302 : 200))
+        } catch {
+            // URLProtocol doesn't finish the original response when its redirect
+            // is declined. Assert the destination was never requested, and use
+            // the non-device control to prove this stub really follows redirects.
+            guard deviceSession, case let LiveParsePluginError.standardized(value) = error,
+                  value.code == .timeout else { throw error }
+        }
+        #expect(LoginTransactionURLProtocol.capturedURL(for: startPath) != nil)
+        #expect((LoginTransactionURLProtocol.capturedURL(for: finalPath) == nil) == deviceSession)
+        await runtime.retireCredentialGeneration(resetDeviceAuth: true)
+    }
+
     @Test("discarded transactions reject late response absorption")
     func discardedTransactionRejectsLateAbsorption() async throws {
         let store = LoginTransactionStore()
@@ -1914,6 +1953,13 @@ private final class LoginTransactionURLProtocol: URLProtocol {
         Self.countLock.withLock {
             Self.capturedHeaders[url.path] = request.allHTTPHeaderFields ?? [:]
             Self.capturedURLs[url.path] = url.absoluteString
+        }
+        if url.path.hasPrefix("/device-redirect-"), url.path.hasSuffix("-start") {
+            let destination = URL(string: url.absoluteString.replacingOccurrences(of: "-start", with: "-final"))!
+            let response = HTTPURLResponse(url: url, statusCode: 302, httpVersion: "HTTP/1.1",
+                headerFields: ["Location": destination.absoluteString])!
+            client?.urlProtocol(self, wasRedirectedTo: URLRequest(url: destination), redirectResponse: response)
+            return
         }
 
         if url.path == "/stalled" {

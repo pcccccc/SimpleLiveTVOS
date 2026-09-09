@@ -18,6 +18,8 @@ struct MacPlatformLoginSheet: View {
 
     var body: some View {
         switch method {
+        case .deviceCode:
+            PlatformDeviceLoginView(entry: entry)
         case .apiToken:
             PlatformAPITokenView(entry: entry)
         case .manualCookie, .clientCredentials:
